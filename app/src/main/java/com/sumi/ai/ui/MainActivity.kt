@@ -67,10 +67,9 @@ class MainActivity : ComponentActivity() {
                 var userSpokenText by remember { mutableStateOf("") }
                 var sumiReplyText by remember { mutableStateOf("Hi ji! Main Sumi hoon. Kahiye, main aapke liye kya kar sakti hoon? 🌸") }
                 var isBackgroundServiceActive by remember { mutableStateOf(false) }
-
                 var activeDialogTitle by remember { mutableStateOf<String?>(null) }
 
-                // Check for uploaded anime avatar photo dynamically
+                // Photo loader (Check karega agar sumi_avatar photo upload hui hai)
                 val avatarResId = remember {
                     val id = context.resources.getIdentifier("sumi_avatar", "drawable", context.packageName)
                     if (id != 0) id else null
@@ -96,7 +95,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // Permission Launcher
+                // Mic Permission
                 val permissionsLauncher = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.RequestMultiplePermissions()
                 ) { perms ->
@@ -132,12 +131,12 @@ class MainActivity : ComponentActivity() {
                             context.startService(intent)
                         }
                         isBackgroundServiceActive = true
-                        sumiReplyText = "Background Wake-Word ON ho gaya! Ab aap kabhi bhi 'Suno Sumi' bolein ✨"
-                        voiceEngine?.speak("Haan ji babu ji, background service on ho gayi hai!")
+                        sumiReplyText = "Background Listen ON ho gaya! Ab 'Suno Sumi' bolein ✨"
+                        voiceEngine?.speak("Background service on ho gayi hai!")
                     } else {
                         context.stopService(intent)
                         isBackgroundServiceActive = false
-                        sumiReplyText = "Background service band ho gayi hai."
+                        sumiReplyText = "Background service band ho gayi."
                     }
                 }
 
@@ -172,7 +171,7 @@ class MainActivity : ComponentActivity() {
                     }
                 )
 
-                // Dialog Popups
+                // Dialogs
                 activeDialogTitle?.let { title ->
                     AlertDialog(
                         onDismissRequest = { activeDialogTitle = null },
@@ -181,11 +180,9 @@ class MainActivity : ComponentActivity() {
                             Text(
                                 text = when (title) {
                                     "Phone Control" -> "Aap bol sakte hain:\n• 'इंस्टाग्राम खोलो'\n• 'यूट्यूब खोलो'\n• 'व्हाट्सएप खोलो'\n• 'कैमरा खोलो'\n• 'फोन सेटिंग खोलो'\nSumi turant app open karegi!"
-                                    "Settings" -> "🌸 Sumi Voice Settings:\n• Pitch: 1.25x (Cute anime)\n• Speaking Speed: 0.95x\n• Preferred Language: Hindi / Hinglish\n• Personality: Cute & Playful"
-                                    "Memory" -> "Local Memory System: ON\nSumi aapki baatein aapke phone ke local storage me yaad rakhti hai. Yahan se aap Memory view ya delete kar sakte hain."
-                                    "Air Gestures" -> "Hand tracking & gesture controls: Upcoming in Phase 10!"
-                                    "Privacy" -> "100% Local Phone Processing\nSumi aapka koi bhi voice audio kisi server par upload nahi karti."
-                                    "Routines" -> "Smart Routines:\n• 'Good morning Sumi' bolne par daily briefing.\n• 'Study mode' bolne par notifications mute."
+                                    "Settings" -> "🌸 Sumi Voice Settings:\n• Pitch: 1.25x (Cute anime)\n• Speed: 0.95x\n• Preferred Language: Hindi / Hinglish"
+                                    "Memory" -> "Local Memory System: ON\nSumi aapki baatein safe phone storage me yaad rakhti hai."
+                                    "Privacy" -> "100% Private\nSumi koi bhi voice audio kisi server par upload nahi karti."
                                     else -> "Feature active hai!"
                                 }
                             )
@@ -233,7 +230,7 @@ fun SumiDashboardScreen(
         ) {
             Spacer(modifier = Modifier.height(10.dp))
 
-            // 1. Anime Girl Avatar Circle (Uses real image if available, else cute anime vector)
+            // 1. Anime Girl Avatar Circle
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
@@ -255,7 +252,7 @@ fun SumiDashboardScreen(
                     )
                 } else {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(text = "🌸👧", fontSize = 40.sp)
+                        Text(text = "👧🌸", fontSize = 42.sp)
                         Text(
                             text = if (isPulsing) "Listening..." else "SUMI",
                             color = Color.White,
@@ -353,7 +350,7 @@ fun SumiDashboardScreen(
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            // 5. Emergency STOP Button
+            // 5. Emergency STOP
             Button(
                 onClick = onEmergencyStop,
                 colors = ButtonDefaults.buttonColors(containerColor = SumiEmergencyRed),
