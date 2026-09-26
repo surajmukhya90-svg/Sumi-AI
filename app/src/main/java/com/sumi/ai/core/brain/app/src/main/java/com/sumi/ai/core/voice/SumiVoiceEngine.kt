@@ -21,7 +21,7 @@ class SumiVoiceEngine(
 
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
-            // Natural Sweet Voice (Not squeaky helium robot)
+            // Alya natural pitch: Soft, gentle, feminine (Not cartoon squeaky!)
             tts?.setPitch(1.15f)
             tts?.setSpeechRate(1.0f)
 
