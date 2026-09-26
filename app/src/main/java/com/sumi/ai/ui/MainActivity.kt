@@ -55,6 +55,7 @@ class MainActivity : ComponentActivity() {
 
             var geminiKey by remember { mutableStateOf(sp.getString("gemini_api_key", "") ?: "") }
             var elevenLabsKey by remember { mutableStateOf(sp.getString("eleven_labs_key", "") ?: "") }
+            var voiceId by remember { mutableStateOf(sp.getString("eleven_voice_id", "21m00Tcm4TlvDq8ikWAM") ?: "21m00Tcm4TlvDq8ikWAM") }
 
             var sumiText by remember { mutableStateOf("Konnichiwa! Main Sumi hoon~ Tap karke baat kijiye sir jii! 🌸") }
             var userText by remember { mutableStateOf("") }
@@ -65,7 +66,7 @@ class MainActivity : ComponentActivity() {
 
             fun speakResponse(text: String) {
                 scope.launch {
-                    val played = elevenLabsEngine?.speakAnimeVoice(elevenLabsKey, "", text) ?: false
+                    val played = elevenLabsEngine?.speakAnimeVoice(elevenLabsKey, voiceId, text) ?: false
                     if (!played) {
                         voiceEngine?.speak(text)
                     }
@@ -143,7 +144,7 @@ class MainActivity : ComponentActivity() {
 
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = { showSettingsDialog = true }, Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF673AB7))) {
-                            Text("⚙️ AI & Voice Keys", fontSize = 12.sp)
+                            Text("⚙️ Voice & AI Keys", fontSize = 12.sp)
                         }
                         Button(onClick = {
                             if (Settings.canDrawOverlays(context)) {
@@ -171,28 +172,62 @@ class MainActivity : ComponentActivity() {
             if (showSettingsDialog) {
                 var gKey by remember { mutableStateOf(geminiKey) }
                 var eKey by remember { mutableStateOf(elevenLabsKey) }
+                var vId by remember { mutableStateOf(voiceId) }
 
                 AlertDialog(
                     onDismissRequest = { showSettingsDialog = false },
-                    title = { Text("🧠 AI Brain & Voice Settings") },
+                    title = { Text("🎙️ Voice & AI Setup") },
                     text = {
                         Column {
-                            OutlinedTextField(gKey, { gKey = it }, label = { Text("Gemini API Key (AQ...)") }, modifier = Modifier.fillMaxWidth())
-                            Spacer(Modifier.height(8.dp))
-                            OutlinedTextField(eKey, { eKey = it }, label = { Text("ElevenLabs Key (Real Voice)") }, modifier = Modifier.fillMaxWidth())
+                            OutlinedTextField(
+                                value = gKey,
+                                onValueChange = { gKey = it },
+                                label = { Text("Gemini API Key (AQ...)") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            OutlinedTextField(
+                                value = eKey,
+                                onValueChange = { eKey = it },
+                                label = { Text("ElevenLabs API Key") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            OutlinedTextField(
+                                value = vId,
+                                onValueChange = { vId = it },
+                                label = { Text("Voice ID (Alya / Custom Voice)") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Text(
+                                text = "ElevenLabs se jo ladki pasand aaye, uski Voice ID yahan daal kar voice change kar sakte ho!",
+                                fontSize = 10.sp,
+                                color = Color.Gray,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
                         }
                     },
                     confirmButton = {
                         TextButton(onClick = {
                             geminiKey = gKey.trim()
                             elevenLabsKey = eKey.trim()
+                            voiceId = vId.trim()
+
                             sp.edit()
                                 .putString("gemini_api_key", geminiKey)
                                 .putString("eleven_labs_key", elevenLabsKey)
+                                .putString("eleven_voice_id", voiceId)
                                 .apply()
+
                             showSettingsDialog = false
-                            sumiText = "Settings Saved! Nayi anime voice connect ho gayi 🌸"
+                            sumiText = "Settings Saved! Nayi aawaz connect ho gayi 🌸"
                         }) { Text("Save") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showSettingsDialog = false }) { Text("Cancel") }
                     }
                 )
             }
