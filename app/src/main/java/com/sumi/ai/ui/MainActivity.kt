@@ -47,7 +47,7 @@ import com.sumi.ai.core.voice.SumiVoiceEngine
 import com.sumi.ai.service.voice.SumiForegroundService
 
 val SumiPinkPrimary = Color(0xFFFF4081)
-val SumiPinkHair = Color(0xFFFF69B4)
+val SumiPinkSecondary = Color(0xFFFF80AB)
 val SumiPinkBackground = Color(0xFFFFF0F5)
 val SumiCardSurface = Color(0xFFFFFFFF)
 val SumiTextDark = Color(0xFF2E1A22)
@@ -95,7 +95,7 @@ class MainActivity : ComponentActivity() {
                     if (granted) {
                         voiceEngine?.startListening()
                     } else {
-                        Toast.makeText(context, "Microphone permission zaroori hai!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Microphone permission allow kijiye!", Toast.LENGTH_SHORT).show()
                     }
                 }
 
@@ -168,7 +168,7 @@ class MainActivity : ComponentActivity() {
                                 text = when (title) {
                                     "Phone Control" -> "Aap bol sakte hain:\n• 'इंस्टाग्राम खोलो'\n• 'यूट्यूब खोलो'\n• 'व्हाट्सएप खोलो'\n• 'कैमरा खोलो'\n• 'फोन सेटिंग खोलो'"
                                     "Settings" -> "🌸 Voice: Alya-style Cute Anime Girl\n• Pitch: 1.68x\n• Speed: 1.08x\n• Language: Hindi / Hinglish"
-                                    "Memory" -> "Local memory storage active hai. Kisi server par data save nahi hota."
+                                    "Memory" -> "Local memory storage active hai. Kisi server par data upload nahi hota."
                                     "Privacy" -> "100% On-device privacy protection."
                                     else -> "Feature active hai!"
                                 }
@@ -216,7 +216,7 @@ fun SumiDashboardScreen(
         ) {
             Spacer(modifier = Modifier.height(10.dp))
 
-            // 1. Anime Girl Character Face Canvas (Pink Hair, Big Anime Eyes, Flowers)
+            // 1. Anime Girl Character Face Canvas (Pink Hair, Purple Anime Eyes, Flowers)
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
@@ -366,28 +366,27 @@ fun SumiDashboardScreen(
     }
 }
 
-// Custom Vector Anime Girl Art (Pink hair, purple anime eyes, blush cheeks)
 @Composable
 fun AnimeCharacterGraphic(isSpeaking: Boolean) {
     Canvas(modifier = Modifier.fillMaxSize()) {
         val w = size.width
         val h = size.height
 
-        // 1. Pink Hair Background
+        // Pink Hair
         drawCircle(
             color = Color(0xFFFF8DA1),
             radius = w * 0.48f,
             center = Offset(w * 0.5f, h * 0.5f)
         )
 
-        // 2. Face (Skin tone)
+        // Face
         drawCircle(
             color = Color(0xFFFFF0E8),
             radius = w * 0.36f,
             center = Offset(w * 0.5f, h * 0.52f)
         )
 
-        // 3. Pink Anime Bangs / Hair Front
+        // Hair Bangs
         val hairPath = Path().apply {
             moveTo(w * 0.15f, h * 0.35f)
             quadraticBezierTo(w * 0.3f, h * 0.55f, w * 0.38f, h * 0.4f)
@@ -398,24 +397,22 @@ fun AnimeCharacterGraphic(isSpeaking: Boolean) {
         }
         drawPath(hairPath, Color(0xFFFF6B8B))
 
-        // 4. Large Anime Eyes (Deep Purple like reference image)
+        // Large Anime Eyes
         val leftEyeCenter = Offset(w * 0.36f, h * 0.52f)
         val rightEyeCenter = Offset(w * 0.64f, h * 0.52f)
         val eyeRadius = w * 0.08f
 
-        // Purple iris
         drawCircle(color = Color(0xFF6A1B9A), radius = eyeRadius, center = leftEyeCenter)
         drawCircle(color = Color(0xFF6A1B9A), radius = eyeRadius, center = rightEyeCenter)
 
-        // Eye reflections (White anime sparkle)
         drawCircle(color = Color.White, radius = eyeRadius * 0.45f, center = Offset(leftEyeCenter.x - 4f, leftEyeCenter.y - 4f))
         drawCircle(color = Color.White, radius = eyeRadius * 0.45f, center = Offset(rightEyeCenter.x - 4f, rightEyeCenter.y - 4f))
 
-        // 5. Cute Anime Blush Cheeks
+        // Cute Blush Cheeks
         drawCircle(color = Color(0xFFFF9AA2).copy(alpha = 0.5f), radius = w * 0.06f, center = Offset(w * 0.28f, h * 0.62f))
         drawCircle(color = Color(0xFFFF9AA2).copy(alpha = 0.5f), radius = w * 0.06f, center = Offset(w * 0.72f, h * 0.62f))
 
-        // 6. Cute Mouth (Open if speaking, cute smile if idle)
+        // Mouth
         if (isSpeaking) {
             drawCircle(color = Color(0xFFE91E63), radius = w * 0.045f, center = Offset(w * 0.5f, h * 0.68f))
         } else {
@@ -429,7 +426,7 @@ fun AnimeCharacterGraphic(isSpeaking: Boolean) {
             )
         }
 
-        // 7. Hair Flower Accessories (White & Pink flowers from reference image)
+        // Flowers
         drawCircle(color = Color.White, radius = w * 0.05f, center = Offset(w * 0.22f, h * 0.28f))
         drawCircle(color = Color(0xFFFF4081), radius = w * 0.02f, center = Offset(w * 0.22f, h * 0.28f))
 
@@ -450,4 +447,13 @@ fun DashboardCard(item: DashboardItem, onClick: () -> Unit) {
         onClick = onClick,
         colors = CardDefaults.cardColors(containerColor = SumiCardSurface),
         shape = RoundedCornerShape(14.dp),
-        elevation = CardDe
+        elevation = CardDefaults.cardElevation(2.dp),
+        modifier = Modifier.fillMaxWidth().height(72.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier
