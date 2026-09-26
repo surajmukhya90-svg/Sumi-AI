@@ -1,6 +1,7 @@
 package com.sumi.ai.ui
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -40,11 +41,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.sumi.ai.core.ai.GeminiBrain
 import com.sumi.ai.core.brain.SumiBrain
-import com.sumi.ai.core.brain.SumiMood
 import com.sumi.ai.core.voice.SumiVoiceEngine
 import com.sumi.ai.service.overlay.SumiOverlayService
 import com.sumi.ai.service.voice.SumiForegroundService
+import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
 
@@ -67,13 +69,15 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme {
                 val context = LocalContext.current
+                val scope = rememberCoroutineScope()
+                val sharedPref = remember { context.getSharedPreferences("sumi_prefs", Context.MODE_PRIVATE) }
+
+                var apiKey by remember { mutableStateOf(sharedPref.getString("gemini_api_key", "") ?: "") }
                 var statusText by remember { mutableStateOf("Ready") }
                 var userSpokenText by remember { mutableStateOf("") }
-                var sumiReplyText by remember { mutableStateOf("Konnichiwa! Main Sumi hoon~ Boliye sir jii, kya kar rahe hain? 🌸") }
-                var currentMood by remember { mutableStateOf(SumiMood.HAPPY) }
-                var isBackgroundActive by remember { mutableStateOf(false) }
+                var sumiReplyText by remember { mutableStateOf("Konnichiwa! Main Sumi hoon~ Kahiye sir jii, aaj kaisa din raha aapka? 🌸") }
                 var avatarBitmap by remember { mutableStateOf<Bitmap?>(null) }
-                var activeDialogTitle by remember { mutableStateOf<String?>(null) }
+                var showSettingsDialog by remember { mutableStateOf(false) }
 
                 LaunchedEffect(Unit) {
                     val file = File(context.filesDir, "custom_avatar.png")
@@ -97,8 +101,8 @@ class MainActivity : ComponentActivity() {
                                 bmp.compress(Bitmap.CompressFormat.PNG, 95, out)
                                 out.flush()
                                 out.close()
-                                sumiReplyText = "Haww! Kitni pyari photo lagayi hai meri! Thank you sir jii~ Hehe 🌸"
-                                voiceEngine?.speak("Haww! Kitni pyari photo lagayi hai meri! Thank you sir jii!")
+                                sumiReplyText = "Haww! Kitni pyari photo lagayi hai meri! Milashka~ Thank you sir jii! 🌸"
+                                voiceEngine?.speak("Haww! Kitni pyari photo lagayi hai meri! Milashka~ Thank you sir jii!")
                             }
                         } catch (e: Exception) {
                             Toast.makeText(context, "Photo set nahi ho paayi!", Toast.LENGTH_SHORT).show()
@@ -111,11 +115,24 @@ class MainActivity : ComponentActivity() {
                         context = context,
                         onSpeechRecognized = { query ->
                             userSpokenText = query
-                            val resp = SumiBrain.processQuery(context, query)
-                            sumiReplyText = resp.replyText
-                            currentMood = resp.mood
-                            voiceEngine?.speak(resp.replyText)
-                            SumiBrain.executeAction(context, resp)
+                            statusText = "Thinking..."
+
+                            // First check offline phone controls (apps, home, scroll)
+                            val offlineResp = SumiBrain.processQuery(context, query)
+                            if (offlineResp.actionType != com.sumi.ai.core.brain.ActionType.NONE) {
+                                sumiReplyText = offlineResp.replyText
+                                voiceEngine?.speak(offlineResp.replyText)
+                                SumiBrain.executeAction(context, offlineResp)
+                                statusText = "Ready"
+                            } else {
+                                // If general talk / internet query -> send to Real Gemini AI Brain
+                                scope.launch {
+                                    val aiResponse = GeminiBrain.getAiReply(apiKey, query)
+                                    sumiReplyText = aiResponse
+                                    voiceEngine?.speak(aiResponse)
+                                    statusText = "Ready"
+                                }
+                            }
                         },
                         onStatusChanged = { newStatus ->
                             statusText = newStatus
@@ -148,30 +165,12 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                fun toggleBackground() {
-                    val intent = Intent(context, SumiForegroundService::class.java)
-                    if (!isBackgroundActive) {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            context.startForegroundService(intent)
-                        } else {
-                            context.startService(intent)
-                        }
-                        isBackgroundActive = true
-                        sumiReplyText = "Main hamesha jag rahi hoon sir jii! Bas 'Sumi' bolein ✨"
-                        voiceEngine?.speak("Haan ji! Main hamesha sun rahi hoon!")
-                    } else {
-                        context.stopService(intent)
-                        isBackgroundActive = false
-                        sumiReplyText = "Background service band ho gayi hai."
-                    }
-                }
-
                 Surface(modifier = Modifier.fillMaxSize(), color = SumiBg) {
                     Column(
                         modifier = Modifier.fillMaxSize().padding(14.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
 
                         // Avatar Circle
                         Box(
@@ -202,7 +201,7 @@ class MainActivity : ComponentActivity() {
                         TextButton(onClick = { imagePickerLauncher.launch("image/*") }) {
                             Icon(Icons.Default.Add, contentDescription = null, tint = SumiPink, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Gallery se Sumi ki Photo lagayein", color = SumiPink, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            Text("Gallery se Sumi ki Anime Photo Lagayein", color = SumiPink, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                         }
 
                         // Status Badge
@@ -221,41 +220,11 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // Background Wake Switch Card
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (isBackgroundActive) Color(0xFFE8F5E9) else Color.White
-                            ),
-                            shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                            elevation = CardDefaults.cardElevation(2.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column {
-                                    Text(
-                                        text = if (isBackgroundActive) "🟢 Sumi Wake-Word: ON" else "⚪ Sumi Wake-Word: OFF",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 13.sp,
-                                        color = if (isBackgroundActive) Color(0xFF2E7D32) else SumiText
-                                    )
-                                    Text(text = "Bolein: 'Sumi' ya 'Suno Sumi'", fontSize = 11.sp, color = Color.Gray)
-                                }
-                                Switch(
-                                    checked = isBackgroundActive,
-                                    onCheckedChange = { toggleBackground() }
-                                )
-                            }
-                        }
-
-                        // Speech Bubble
+                        // Speech Conversation Bubble
                         Card(
                             colors = CardDefaults.cardColors(containerColor = Color.White),
-                            shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
                             elevation = CardDefaults.cardElevation(2.dp)
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {
@@ -275,9 +244,9 @@ class MainActivity : ComponentActivity() {
                         // Feature Grid
                         val featureList = listOf(
                             FeatureItem("Talk to Sumi", Icons.Default.Call, SumiPink),
-                            FeatureItem("Settings", Icons.Default.Settings, Color(0xFF673AB7)),
-                            FeatureItem("Memory", Icons.Default.Favorite, Color(0xFF009688)),
-                            FeatureItem("Phone Control", Icons.Default.PhoneAndroid, Color(0xFFE91E63)),
+                            FeatureItem("Settings (AI Key)", Icons.Default.Settings, Color(0xFF673AB7)),
+                            FeatureItem("Floating Avatar", Icons.Default.Visibility, Color(0xFF009688)),
+                            FeatureItem("Screen Reader", Icons.Default.PhoneAndroid, Color(0xFFE91E63)),
                             FeatureItem("Air Gestures", Icons.Default.PlayArrow, Color(0xFFFF9800)),
                             FeatureItem("Permissions", Icons.Default.Lock, Color(0xFF3F51B5)),
                             FeatureItem("Privacy", Icons.Default.Info, Color(0xFF4CAF50)),
@@ -295,20 +264,23 @@ class MainActivity : ComponentActivity() {
                                     onClick = {
                                         when (feat.name) {
                                             "Talk to Sumi" -> triggerListening()
-                                            "Phone Control" -> {
+                                            "Settings (AI Key)" -> showSettingsDialog = true
+                                            "Floating Avatar" -> {
                                                 if (Settings.canDrawOverlays(context)) {
                                                     context.startService(Intent(context, SumiOverlayService::class.java))
-                                                    Toast.makeText(context, "Sumi floating bubble screen par active!", Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(context, "Sumi floating bubble screen par active ho gayi!", Toast.LENGTH_SHORT).show()
                                                 } else {
                                                     val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}"))
                                                     context.startActivity(intent)
                                                 }
                                             }
-                                            "Permissions" -> {
+                                            "Screen Reader", "Permissions" -> {
                                                 val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
                                                 context.startActivity(intent)
                                             }
-                                            else -> activeDialogTitle = feat.name
+                                            else -> {
+                                                Toast.makeText(context, "${feat.name} active hai!", Toast.LENGTH_SHORT).show()
+                                            }
                                         }
                                     },
                                     colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -335,9 +307,9 @@ class MainActivity : ComponentActivity() {
                             onClick = {
                                 voiceEngine?.stopListening()
                                 context.stopService(Intent(context, SumiForegroundService::class.java))
-                                isBackgroundActive = false
+                                context.stopService(Intent(context, SumiOverlayService::class.java))
                                 statusText = "Stopped"
-                                sumiReplyText = "⛔ Sumi chup ho gayi hai!"
+                                sumiReplyText = "⛔ Sumi sab band karke ruk gayi hai!"
                                 Toast.makeText(context, "STOP SUMI Activated!", Toast.LENGTH_SHORT).show()
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD50000)),
@@ -351,23 +323,42 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                activeDialogTitle?.let { clickedTitle ->
+                // AI Key Settings Dialog
+                if (showSettingsDialog) {
+                    var inputKey by remember { mutableStateOf(apiKey) }
                     AlertDialog(
-                        onDismissRequest = { activeDialogTitle = null },
-                        title = { Text(text = "🌸 $clickedTitle", fontWeight = FontWeight.Bold) },
+                        onDismissRequest = { showSettingsDialog = false },
+                        title = { Text(text = "🧠 Sumi Real AI Key Setup", fontWeight = FontWeight.Bold) },
                         text = {
-                            Text(
-                                text = when (clickedTitle) {
-                                    "Settings" -> "🌸 Voice: Natural Alya\n• Pitch: 1.15x (Sweet)\n• Speed: 1.0x"
-                                    "Memory" -> "Local memory storage active hai."
-                                    "Privacy" -> "100% On-device privacy protection."
-                                    else -> "Feature active hai!"
-                                }
-                            )
+                            Column {
+                                Text(
+                                    text = "Google AI Studio (aistudio.google.com) se free Gemini API key copy karke yahan paste karein. Isse Sumi internet se live dimaag legi aur full Alya bankar aapse baat karegi!",
+                                    fontSize = 12.sp
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                OutlinedTextField(
+                                    value = inputKey,
+                                    onValueChange = { inputKey = it },
+                                    label = { Text("Paste Gemini API Key Here") },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
                         },
                         confirmButton = {
-                            TextButton(onClick = { activeDialogTitle = null }) {
-                                Text("Theek hai")
+                            TextButton(onClick = {
+                                apiKey = inputKey.trim()
+                                sharedPref.edit().putString("gemini_api_key", apiKey).apply()
+                                showSettingsDialog = false
+                                sumiReplyText = "Hehe~ Asli dimaag connect ho gaya sir jii! Ab mujhse kuch bhi puchiye, main internet se dhoondh kar bataungi 🌸"
+                                voiceEngine?.speak("Hehe~ Asli dimaag connect ho gaya sir jii! Ab mujhse kuch bhi puchiye!")
+                            }) {
+                                Text("Save Key")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showSettingsDialog = false }) {
+                                Text("Cancel")
                             }
                         }
                     )
