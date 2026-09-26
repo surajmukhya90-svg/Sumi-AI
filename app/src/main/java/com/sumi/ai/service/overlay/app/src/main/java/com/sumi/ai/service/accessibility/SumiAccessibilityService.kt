@@ -38,6 +38,23 @@ class SumiAccessibilityService : AccessibilityService() {
                 service.dispatchGesture(gesture, null, null)
             }
         }
+
+        fun triggerScrollUp() {
+            instance?.let { service ->
+                val metrics = service.resources.displayMetrics
+                val width = metrics.widthPixels.toFloat()
+                val height = metrics.heightPixels.toFloat()
+
+                val path = Path().apply {
+                    moveTo(width * 0.5f, height * 0.25f)
+                    lineTo(width * 0.5f, height * 0.75f)
+                }
+                val gesture = GestureDescription.Builder()
+                    .addStroke(GestureDescription.StrokeDescription(path, 0, 300))
+                    .build()
+                service.dispatchGesture(gesture, null, null)
+            }
+        }
     }
 
     override fun onServiceConnected() {
@@ -46,13 +63,11 @@ class SumiAccessibilityService : AccessibilityService() {
         voiceEngine = SumiVoiceEngine(this, onSpeechRecognized = {}, onStatusChanged = {})
     }
 
-    // Screen Read karna aur tokna
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             val packageName = event.packageName?.toString() ?: return
             val currentTime = System.currentTimeMillis()
 
-            // 1 minute ke gap mein tokna taaki irritate na kare
             if (currentTime - lastAppCommentTime > 60000) {
                 when {
                     packageName.contains("instagram") -> {
