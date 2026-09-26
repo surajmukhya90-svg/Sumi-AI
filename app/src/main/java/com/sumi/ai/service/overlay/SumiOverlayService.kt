@@ -1,5 +1,6 @@
 package com.sumi.ai.service.overlay
 
+import android.animation.ValueAnimator
 import android.app.Service
 import android.content.Intent
 import android.graphics.BitmapFactory
@@ -10,6 +11,7 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.view.animation.LinearInterpolator
 import android.widget.ImageView
 import androidx.core.app.NotificationCompat
 import com.sumi.ai.SumiApp
@@ -19,21 +21,22 @@ import java.io.File
 class SumiOverlayService : Service() {
 
     private var windowManager: WindowManager? = null
-    private var floatingAvatarView: ImageView? = null
+    private var mascotView: ImageView? = null
     private var voiceEngine: SumiVoiceEngine? = null
+    private var floatAnimator: ValueAnimator? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
         voiceEngine = SumiVoiceEngine(this, onSpeechRecognized = {}, onStatusChanged = {})
-        showFloatingAvatar()
+        showAnimatedMascot()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val notification = NotificationCompat.Builder(this, SumiApp.OVERLAY_CHANNEL_ID)
-            .setContentTitle("🌸 Sumi Screen Par Tair Rahi Hai")
-            .setContentText("Avatar tap karke baat karein!")
+            .setContentTitle("🌸 Sumi Screen Par Active Hai")
+            .setContentText("Sumi mascot ko touch karke baat karein!")
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setOngoing(true)
             .build()
@@ -42,11 +45,10 @@ class SumiOverlayService : Service() {
         return START_NOT_STICKY
     }
 
-    private fun showFloatingAvatar() {
+    private fun showAnimatedMascot() {
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
 
-        floatingAvatarView = ImageView(this).apply {
-            // Load saved photo if exists, else fallback
+        mascotView = ImageView(this).apply {
             val file = File(filesDir, "custom_avatar.png")
             if (file.exists()) {
                 val bitmap = BitmapFactory.decodeFile(file.absolutePath)
@@ -64,18 +66,34 @@ class SumiOverlayService : Service() {
         }
 
         val params = WindowManager.LayoutParams(
-            160, 160,
+            170, 170,
             layoutFlag,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = 50
-            y = 200
+            x = 80
+            y = 300
         }
 
-        // Draggable Touch Listener
-        floatingAvatarView?.setOnTouchListener(object : View.OnTouchListener {
+        // Floating idle bounce animation (Chalta-firta mascot)
+        floatAnimator = ValueAnimator.ofFloat(0f, 15f).apply {
+            duration = 1200
+            repeatMode = ValueAnimator.REVERSE
+            repeatCount = ValueAnimator.INFINITE
+            interpolator = LinearInterpolator()
+            addUpdateListener { anim ->
+                val offset = anim.animatedValue as Float
+                params.y = (300 + offset).toInt()
+                try {
+                    windowManager?.updateViewLayout(mascotView, params)
+                } catch (e: Exception) {}
+            }
+        }
+        floatAnimator?.start()
+
+        // Drag & Touch interaction
+        mascotView?.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
             private var initialY = 0
             private var initialTouchX = 0f
@@ -93,15 +111,20 @@ class SumiOverlayService : Service() {
                     MotionEvent.ACTION_MOVE -> {
                         params.x = initialX + (event.rawX - initialTouchX).toInt()
                         params.y = initialY + (event.rawY - initialTouchY).toInt()
-                        windowManager?.updateViewLayout(floatingAvatarView, params)
+                        windowManager?.updateViewLayout(mascotView, params)
                         return true
                     }
                     MotionEvent.ACTION_UP -> {
                         val diffX = Math.abs(event.rawX - initialTouchX)
                         val diffY = Math.abs(event.rawY - initialTouchY)
-                        if (diffX < 10 && diffY < 10) {
-                            // Tap karne par Alya bol padegi
-                            voiceEngine?.speak("Hehe~ Kya hua sir jii? Mujhe kyu chhua? Boliye na! 🌸")
+                        if (diffX < 12 && diffY < 12) {
+                            // Touch karne par Alya teasing / jealous dialogues
+                            val teasingQuotes = listOf(
+                                "Milashka~ Kahan dhyan hai aapka? Mujhe dekho na! 🌸",
+                                "Kya hua sir jii? Baar-baar mujhe chhu kar tang kar rahe ho! Hmph! 😤",
+                                "Betsu ni... Main toh bas dekh rahi thi aap kya kar rahe ho! Hehe~ 👀"
+                            )
+                            voiceEngine?.speak(teasingQuotes.random())
                         }
                         return true
                     }
@@ -111,7 +134,7 @@ class SumiOverlayService : Service() {
         })
 
         try {
-            windowManager?.addView(floatingAvatarView, params)
+            windowManager?.addView(mascotView, params)
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -119,7 +142,8 @@ class SumiOverlayService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        floatingAvatarView?.let { windowManager?.removeView(it) }
+        floatAnimator?.cancel()
+        mascotView?.let { windowManager?.removeView(it) }
         voiceEngine?.shutdown()
         stopForeground(true)
     }
