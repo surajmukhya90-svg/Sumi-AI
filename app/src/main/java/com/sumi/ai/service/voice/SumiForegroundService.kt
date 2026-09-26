@@ -29,8 +29,8 @@ class SumiForegroundService : Service() {
         )
 
         return NotificationCompat.Builder(this, SumiApp.VOICE_CHANNEL_ID)
-            .setContentTitle("🌸 Sumi AI Active")
-            .setContentText("Tap karke Sumi se baat karein!")
+            .setContentTitle("🌸 Sumi AI aapke sath hai")
+            .setContentText("Bolein: 'Suno Sumi' ya 'Sumi'...")
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
