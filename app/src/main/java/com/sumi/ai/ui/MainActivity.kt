@@ -1,11 +1,17 @@
 package com.sumi.ai.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -19,13 +25,18 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import com.sumi.ai.core.brain.SumiBrain
+import com.sumi.ai.core.voice.SumiVoiceEngine
 
 // Sumi Cute Anime Color Palette
 val SumiPinkPrimary = Color(0xFFFF4081)
@@ -37,16 +48,87 @@ val SumiGreenReady = Color(0xFF00C853)
 val SumiEmergencyRed = Color(0xFFD50000)
 
 class MainActivity : ComponentActivity() {
+
+    private var voiceEngine: SumiVoiceEngine? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
+                val context = LocalContext.current
+                var statusText by remember { mutableStateOf("Ready") }
+                var userSpokenText by remember { mutableStateOf("") }
+                var sumiReplyText by remember { mutableStateOf("Hi ji! Main Sumi hoon. Kahiye, main aapke liye kya kar sakti hoon? 🌸") }
+
+                // Voice Engine Setup
+                DisposableEffect(Unit) {
+                    voiceEngine = SumiVoiceEngine(
+                        context = context,
+                        onSpeechRecognized = { spokenQuery ->
+                            userSpokenText = spokenQuery
+                            val response = SumiBrain.processQuery(context, spokenQuery)
+                            sumiReplyText = response.replyText
+                            voiceEngine?.speak(response.replyText)
+                            SumiBrain.executeAction(context, response)
+                        },
+                        onStatusChanged = { newStatus ->
+                            statusText = newStatus
+                        }
+                    )
+                    onDispose {
+                        voiceEngine?.shutdown()
+                    }
+                }
+
+                // Microphone Permission Launcher
+                val micPermissionLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.RequestPermission()
+                ) { isGranted ->
+                    if (isGranted) {
+                        statusText = "Listening..."
+                        voiceEngine?.startListening()
+                    } else {
+                        Toast.makeText(context, "Microphone permission zaroori hai Sumi se baat karne ke liye!", Toast.LENGTH_SHORT).show()
+                    }
+                }
+
+                fun startListeningWithPermission() {
+                    val hasPermission = ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.RECORD_AUDIO
+                    ) == PackageManager.PERMISSION_GRANTED
+
+                    if (hasPermission) {
+                        statusText = "Listening..."
+                        voiceEngine?.startListening()
+                    } else {
+                        micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                    }
+                }
+
                 SumiDashboardScreen(
+                    statusText = statusText,
+                    userSpokenText = userSpokenText,
+                    sumiReplyText = sumiReplyText,
+                    onAvatarClick = { startListeningWithPermission() },
                     onActionClick = { title ->
-                        Toast.makeText(this, "$title: Phase 1 ready!", Toast.LENGTH_SHORT).show()
+                        when (title) {
+                            "Talk to Sumi" -> startListeningWithPermission()
+                            "Phone Control" -> {
+                                val reply = "Ji, aap bol kar YouTube, Instagram, Camera ya Settings khol sakte hain!"
+                                sumiReplyText = reply
+                                voiceEngine?.speak(reply)
+                            }
+                            else -> {
+                                Toast.makeText(context, "$title feature ready!", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     },
                     onEmergencyStop = {
-                        Toast.makeText(this, "⛔ SUMI STOPPED! Emergency killswitch activated.", Toast.LENGTH_LONG).show()
+                        voiceEngine?.stopListening()
+                        statusText = "Stopped"
+                        sumiReplyText = "Sumi stop ho gayi hai. Jab dubara baat karni ho toh Avatar par tap karein."
+                        Toast.makeText(context, "⛔ SUMI STOPPED!", Toast.LENGTH_LONG).show()
                     }
                 )
             }
@@ -56,9 +138,26 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun SumiDashboardScreen(
+    statusText: String,
+    userSpokenText: String,
+    sumiReplyText: String,
+    onAvatarClick: () -> Unit,
     onActionClick: (String) -> Unit,
     onEmergencyStop: () -> Unit
 ) {
+    // Pulse animation when listening or speaking
+    val isPulsing = statusText.contains("Listening") || statusText.contains("Speaking")
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = if (isPulsing) 1.15f else 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "scale"
+    )
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = SumiPinkBackground
@@ -71,11 +170,12 @@ fun SumiDashboardScreen(
         ) {
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 1. Anime Avatar Circular Card
+            // 1. Anime Avatar Circular Card with Interactive Tap & Animation
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
-                    .size(120.dp)
+                    .size(125.dp)
+                    .scale(scale)
                     .clip(CircleShape)
                     .background(
                         Brush.radialGradient(
@@ -83,39 +183,25 @@ fun SumiDashboardScreen(
                         )
                     )
                     .border(4.dp, Color.White, CircleShape)
+                    .clickable { onAvatarClick() }
             ) {
                 Text(
-                    text = "🌸\nSUMI",
+                    text = if (isPulsing) "🎙\nListening..." else "🌸\nSUMI",
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
+                    fontSize = 17.sp,
                     textAlign = TextAlign.Center
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // 2. Greeting & Tagline
-            Text(
-                text = "Hi ji! Main Sumi hoon 👋",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                color = SumiTextDark
-            )
-            Text(
-                text = "Your personal Hindi AI companion & phone controller",
-                fontSize = 13.sp,
-                color = Color.Gray,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
-            )
-
-            // 3. Status Badge
+            // 2. Status Badge
             Surface(
                 color = Color.White,
                 shape = RoundedCornerShape(20.dp),
                 shadowElevation = 2.dp,
-                modifier = Modifier.padding(vertical = 8.dp)
+                modifier = Modifier.padding(vertical = 4.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -125,11 +211,18 @@ fun SumiDashboardScreen(
                         modifier = Modifier
                             .size(10.dp)
                             .clip(CircleShape)
-                            .background(SumiGreenReady)
+                            .background(
+                                when {
+                                    statusText.contains("Listening") -> Color(0xFFFF9800)
+                                    statusText.contains("Speaking") -> SumiPinkPrimary
+                                    statusText.contains("Stopped") -> SumiEmergencyRed
+                                    else -> SumiGreenReady
+                                }
+                            )
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "● Sumi is ready",
+                        text = "● Status: $statusText",
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 13.sp,
                         color = SumiTextDark
@@ -137,9 +230,35 @@ fun SumiDashboardScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            // 3. Live Speech Bubble (Conversation Box)
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 10.dp),
+                elevation = CardDefaults.cardElevation(2.dp)
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    if (userSpokenText.isNotEmpty()) {
+                        Text(
+                            text = "👤 Aap: $userSpokenText",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.Gray
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+                    Text(
+                        text = "🌸 Sumi: $sumiReplyText",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = SumiTextDark
+                    )
+                }
+            }
 
-            // 4. Feature Buttons Grid (Using 100% Standard Universal Android Icons)
+            // 4. Feature Buttons Grid
             val menuItems = listOf(
                 DashboardItem("Talk to Sumi", Icons.Default.Call, SumiPinkPrimary),
                 DashboardItem("Settings", Icons.Default.Settings, Color(0xFF673AB7)),
@@ -166,21 +285,21 @@ fun SumiDashboardScreen(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // 5. Emergency Kill Switch (Stop Sumi)
+            // 5. Emergency Kill Switch
             Button(
                 onClick = onEmergencyStop,
                 colors = ButtonDefaults.buttonColors(containerColor = SumiEmergencyRed),
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(52.dp)
+                    .height(50.dp)
             ) {
                 Icon(Icons.Default.Close, contentDescription = null, tint = Color.White)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "STOP SUMI",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
+                    fontSize = 15.sp,
                     color = Color.White
                 )
             }
@@ -201,7 +320,9 @@ fun DashboardCard(item: DashboardItem, onClick: () -> Unit) {
         colors = CardDefaults.cardColors(containerColor = SumiCardSurface),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        modifier = Modifier.fillMaxWidth().height(85.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(78.dp)
     ) {
         Row(
             modifier = Modifier
@@ -212,11 +333,11 @@ fun DashboardCard(item: DashboardItem, onClick: () -> Unit) {
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
-                    .size(42.dp)
+                    .size(40.dp)
                     .clip(CircleShape)
                     .background(item.tint.copy(alpha = 0.15f))
             ) {
-                Icon(item.icon, contentDescription = null, tint = item.tint, modifier = Modifier.size(24.dp))
+                Icon(item.icon, contentDescription = null, tint = item.tint, modifier = Modifier.size(22.dp))
             }
             Spacer(modifier = Modifier.width(10.dp))
             Text(
