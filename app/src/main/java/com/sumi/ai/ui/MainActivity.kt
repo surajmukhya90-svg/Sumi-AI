@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -73,14 +74,29 @@ class MainActivity : ComponentActivity() {
                 val sharedPref = remember { context.getSharedPreferences("sumi_prefs", Context.MODE_PRIVATE) }
 
                 var apiKey by remember { mutableStateOf(sharedPref.getString("gemini_api_key", "") ?: "") }
-                var voicePitch by remember { mutableStateOf(sharedPref.getFloat("voice_pitch", 1.15f)) }
-                var voiceSpeed by remember { mutableStateOf(sharedPref.getFloat("voice_speed", 1.0f)) }
-
                 var statusText by remember { mutableStateOf("Ready") }
                 var userSpokenText by remember { mutableStateOf("") }
                 var sumiReplyText by remember { mutableStateOf("Konnichiwa! Main Sumi hoon~ Tap karke baat kijiye sir jii! 🌸") }
                 var avatarBitmap by remember { mutableStateOf<Bitmap?>(null) }
-                var showVoiceSettings by remember { mutableStateOf(false) }
+                var showSettingsDialog by remember { mutableStateOf(false) }
+
+                fun playCustomVoiceIfAvailable(): Boolean {
+                    val customAudioFile = File(context.filesDir, "custom_voice.mp3")
+                    if (customAudioFile.exists()) {
+                        try {
+                            val mp = MediaPlayer().apply {
+                                setDataSource(customAudioFile.absolutePath)
+                                prepare()
+                                start()
+                                setOnCompletionListener { it.release() }
+                            }
+                            return true
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
+                    return false
+                }
 
                 LaunchedEffect(Unit) {
                     val file = File(context.filesDir, "custom_avatar.png")
@@ -89,6 +105,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                // 1. Photo Picker
                 val imagePickerLauncher = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.GetContent()
                 ) { uri: Uri? ->
@@ -107,8 +124,29 @@ class MainActivity : ComponentActivity() {
                                 sumiReplyText = "Milashka~ Kitni pyari photo lagayi hai meri! Thank you sir jii! 🌸"
                                 voiceEngine?.speak("Milashka~ Kitni pyari photo lagayi hai meri! Thank you sir jii!")
                             }
+                        } catch (e: Exception) {}
+                    }
+                }
+
+                // 2. Custom Audio/Voice File Picker (Internet se download ki hui mp3 lagane ke liye)
+                val audioPickerLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.GetContent()
+                ) { uri: Uri? ->
+                    uri?.let { selectedUri ->
+                        try {
+                            val inputStream = context.contentResolver.openInputStream(selectedUri)
+                            val destFile = File(context.filesDir, "custom_voice.mp3")
+                            val out = FileOutputStream(destFile)
+                            inputStream?.copyTo(out)
+                            inputStream?.close()
+                            out.flush()
+                            out.close()
+
+                            sumiReplyText = "Wah sir jii! Nayi real voice file set ho gayi hai! 🎵"
+                            playCustomVoiceIfAvailable()
+                            Toast.makeText(context, "Real Custom Voice Set Ho Gayi!", Toast.LENGTH_SHORT).show()
                         } catch (e: Exception) {
-                            Toast.makeText(context, "Photo set nahi ho paayi!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Audio file set nahi ho paayi!", Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
@@ -123,14 +161,18 @@ class MainActivity : ComponentActivity() {
                             val offlineResp = SumiBrain.processQuery(context, query)
                             if (offlineResp.actionType != ActionType.NONE) {
                                 sumiReplyText = offlineResp.replyText
-                                voiceEngine?.speak(offlineResp.replyText)
+                                if (!playCustomVoiceIfAvailable()) {
+                                    voiceEngine?.speak(offlineResp.replyText)
+                                }
                                 SumiBrain.executeAction(context, offlineResp)
                                 statusText = "Ready"
                             } else {
                                 scope.launch {
                                     val aiResponse = GeminiBrain.getAiReply(apiKey, query)
                                     sumiReplyText = aiResponse
-                                    voiceEngine?.speak(aiResponse)
+                                    if (!playCustomVoiceIfAvailable()) {
+                                        voiceEngine?.speak(aiResponse)
+                                    }
                                     statusText = "Ready"
                                 }
                             }
@@ -171,13 +213,13 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxSize().padding(14.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(2.dp))
 
                         // Avatar Circle
                         Box(
                             contentAlignment = Alignment.Center,
                             modifier = Modifier
-                                .size(140.dp)
+                                .size(135.dp)
                                 .clip(CircleShape)
                                 .background(Color.White)
                                 .border(4.dp, SumiPink, CircleShape)
@@ -192,17 +234,24 @@ class MainActivity : ComponentActivity() {
                                 )
                             } else {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(text = "👧🌸", fontSize = 40.sp)
+                                    Text(text = "👧🌸", fontSize = 38.sp)
                                     Text(text = "Tap to Talk", fontSize = 11.sp, color = SumiPink, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
 
-                        // Pick photo button
+                        // Photo Picker Button
                         TextButton(onClick = { imagePickerLauncher.launch("image/*") }) {
-                            Icon(Icons.Default.Add, contentDescription = null, tint = SumiPink, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.Add, contentDescription = null, tint = SumiPink, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Gallery se Sumi ki Photo lagayein", color = SumiPink, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            Text("Anime Photo Set Karein", color = SumiPink, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                        }
+
+                        // Custom Voice File Picker Button (.mp3/.wav)
+                        TextButton(onClick = { audioPickerLauncher.launch("audio/*") }) {
+                            Icon(Icons.Default.MusicNote, contentDescription = null, tint = Color(0xFF673AB7), modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("🎵 Internet Se Download Ki Hui Voice File Lagayein (.mp3)", color = Color(0xFF673AB7), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
 
                         // Status Badge
@@ -225,10 +274,10 @@ class MainActivity : ComponentActivity() {
                         Card(
                             colors = CardDefaults.cardColors(containerColor = Color.White),
                             shape = RoundedCornerShape(16.dp),
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                             elevation = CardDefaults.cardElevation(2.dp)
                         ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
+                            Column(modifier = Modifier.padding(10.dp)) {
                                 if (userSpokenText.isNotEmpty()) {
                                     Text(text = "👤 Aap: $userSpokenText", fontSize = 12.sp, color = Color.Gray)
                                     Spacer(modifier = Modifier.height(2.dp))
@@ -245,9 +294,9 @@ class MainActivity : ComponentActivity() {
                         // Feature Grid
                         val featureList = listOf(
                             FeatureItem("Talk to Sumi", Icons.Default.Call, SumiPink),
-                            FeatureItem("Voice Settings", Icons.Default.VolumeUp, Color(0xFF673AB7)),
+                            FeatureItem("Settings (AI Key)", Icons.Default.Settings, Color(0xFF673AB7)),
                             FeatureItem("Floating Mascot", Icons.Default.Visibility, Color(0xFF009688)),
-                            FeatureItem("Screen Tokna (GF)", Icons.Default.PhoneAndroid, Color(0xFFE91E63)),
+                            FeatureItem("Screen Reader (GF)", Icons.Default.PhoneAndroid, Color(0xFFE91E63)),
                             FeatureItem("Air Gestures", Icons.Default.PlayArrow, Color(0xFFFF9800)),
                             FeatureItem("Permissions", Icons.Default.Lock, Color(0xFF3F51B5)),
                             FeatureItem("Privacy", Icons.Default.Info, Color(0xFF4CAF50)),
@@ -265,7 +314,7 @@ class MainActivity : ComponentActivity() {
                                     onClick = {
                                         when (feat.name) {
                                             "Talk to Sumi" -> triggerListening()
-                                            "Voice Settings" -> showVoiceSettings = true
+                                            "Settings (AI Key)" -> showSettingsDialog = true
                                             "Floating Mascot" -> {
                                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
                                                     Toast.makeText(context, "Sumi ko 'Display over other apps' allow kijiye!", Toast.LENGTH_LONG).show()
@@ -276,7 +325,7 @@ class MainActivity : ComponentActivity() {
                                                     Toast.makeText(context, "Sumi animated mascot screen par active!", Toast.LENGTH_SHORT).show()
                                                 }
                                             }
-                                            "Screen Tokna (GF)", "Permissions" -> {
+                                            "Screen Reader (GF)", "Permissions" -> {
                                                 val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
                                                 context.startActivity(intent)
                                             }
@@ -288,7 +337,7 @@ class MainActivity : ComponentActivity() {
                                     colors = CardDefaults.cardColors(containerColor = Color.White),
                                     shape = RoundedCornerShape(14.dp),
                                     elevation = CardDefaults.cardElevation(2.dp),
-                                    modifier = Modifier.fillMaxWidth().height(64.dp)
+                                    modifier = Modifier.fillMaxWidth().height(60.dp)
                                 ) {
                                     Row(
                                         modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp),
@@ -296,7 +345,7 @@ class MainActivity : ComponentActivity() {
                                     ) {
                                         Icon(feat.icon, contentDescription = null, tint = feat.color, modifier = Modifier.size(20.dp))
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text(text = feat.name, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = SumiText)
+                                        Text(text = feat.name, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = SumiText)
                                     }
                                 }
                             }
@@ -315,61 +364,11 @@ class MainActivity : ComponentActivity() {
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD50000)),
                             shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier.fillMaxWidth().height(46.dp)
+                            modifier = Modifier.fillMaxWidth().height(44.dp)
                         ) {
                             Icon(Icons.Default.Close, contentDescription = null, tint = Color.White)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = "STOP SUMI", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White)
+                            Text(text = "STOP SUMI", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
                         }
                     }
-                }
-
-                // Voice & AI Settings Dialog (Pitch, Speed, API Key)
-                if (showVoiceSettings) {
-                    var inputKey by remember { mutableStateOf(apiKey) }
-                    var tempPitch by remember { mutableStateOf(voicePitch) }
-                    var tempSpeed by remember { mutableStateOf(voiceSpeed) }
-
-                    AlertDialog(
-                        onDismissRequest = { showVoiceSettings = false },
-                        title = { Text(text = "🎙️ Voice Changer & AI Brain", fontWeight = FontWeight.Bold) },
-                        text = {
-                            Column {
-                                Text("Aawaz ka Pitch: ${String.format("%.2f", tempPitch)}x", fontSize = 12.sp)
-                                Slider(
-                                    value = tempPitch,
-                                    onValueChange = { tempPitch = it },
-                                    valueRange = 0.8f..1.6f
-                                )
-
-                                Text("Bolne ki Speed: ${String.format("%.2f", tempSpeed)}x", fontSize = 12.sp)
-                                Slider(
-                                    value = tempSpeed,
-                                    onValueChange = { tempSpeed = it },
-                                    valueRange = 0.7f..1.4f
-                                )
-
-                                Spacer(modifier = Modifier.height(6.dp))
-                                OutlinedTextField(
-                                    value = inputKey,
-                                    onValueChange = { inputKey = it },
-                                    label = { Text("Gemini API Key (AQ...)") },
-                                    singleLine = true,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
-                        },
-                        confirmButton = {
-                            TextButton(onClick = {
-                                apiKey = inputKey.trim()
-                                voicePitch = tempPitch
-                                voiceSpeed = tempSpeed
-
-                                sharedPref.edit()
-                                    .putString("gemini_api_key", apiKey)
-                                    .putFloat("voice_pitch", voicePitch)
-                                    .putFloat("voice_speed", voiceSpeed)
-                                    .apply()
-
-                                showVoiceSettings = false
-                   
+ 
