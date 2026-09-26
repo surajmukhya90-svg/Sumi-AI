@@ -16,6 +16,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -128,7 +129,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // 2. Custom Audio/Voice File Picker (Internet se download ki hui mp3 lagane ke liye)
+                // 2. Custom Audio Picker (.mp3 / .wav)
                 val audioPickerLauncher = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.GetContent()
                 ) { uri: Uri? ->
@@ -142,7 +143,7 @@ class MainActivity : ComponentActivity() {
                             out.flush()
                             out.close()
 
-                            sumiReplyText = "Wah sir jii! Nayi real voice file set ho gayi hai! 🎵"
+                            sumiReplyText = "Wah sir jii! Nayi real voice file set ho gayi hai! 🌸"
                             playCustomVoiceIfAvailable()
                             Toast.makeText(context, "Real Custom Voice Set Ho Gayi!", Toast.LENGTH_SHORT).show()
                         } catch (e: Exception) {
@@ -249,9 +250,9 @@ class MainActivity : ComponentActivity() {
 
                         // Custom Voice File Picker Button (.mp3/.wav)
                         TextButton(onClick = { audioPickerLauncher.launch("audio/*") }) {
-                            Icon(Icons.Default.MusicNote, contentDescription = null, tint = Color(0xFF673AB7), modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color(0xFF673AB7), modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("🎵 Internet Se Download Ki Hui Voice File Lagayein (.mp3)", color = Color(0xFF673AB7), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text("🎵 Internet Se Download Voice Lagayein (.mp3)", color = Color(0xFF673AB7), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
 
                         // Status Badge
@@ -311,33 +312,35 @@ class MainActivity : ComponentActivity() {
                         ) {
                             items(featureList) { feat ->
                                 Card(
-                                    onClick = {
-                                        when (feat.name) {
-                                            "Talk to Sumi" -> triggerListening()
-                                            "Settings (AI Key)" -> showSettingsDialog = true
-                                            "Floating Mascot" -> {
-                                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
-                                                    Toast.makeText(context, "Sumi ko 'Display over other apps' allow kijiye!", Toast.LENGTH_LONG).show()
-                                                    val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}"))
-                                                    context.startActivity(intent)
-                                                } else {
-                                                    context.startService(Intent(context, SumiOverlayService::class.java))
-                                                    Toast.makeText(context, "Sumi animated mascot screen par active!", Toast.LENGTH_SHORT).show()
-                                                }
-                                            }
-                                            "Screen Reader (GF)", "Permissions" -> {
-                                                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                                                context.startActivity(intent)
-                                            }
-                                            else -> {
-                                                Toast.makeText(context, "${feat.name} ready!", Toast.LENGTH_SHORT).show()
-                                            }
-                                        }
-                                    },
                                     colors = CardDefaults.cardColors(containerColor = Color.White),
                                     shape = RoundedCornerShape(14.dp),
                                     elevation = CardDefaults.cardElevation(2.dp),
-                                    modifier = Modifier.fillMaxWidth().height(60.dp)
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(60.dp)
+                                        .clickable {
+                                            when (feat.name) {
+                                                "Talk to Sumi" -> triggerListening()
+                                                "Settings (AI Key)" -> showSettingsDialog = true
+                                                "Floating Mascot" -> {
+                                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
+                                                        Toast.makeText(context, "Sumi ko 'Display over other apps' allow kijiye!", Toast.LENGTH_LONG).show()
+                                                        val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}"))
+                                                        context.startActivity(intent)
+                                                    } else {
+                                                        context.startService(Intent(context, SumiOverlayService::class.java))
+                                                        Toast.makeText(context, "Sumi animated mascot screen par active!", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
+                                                "Screen Reader (GF)", "Permissions" -> {
+                                                    val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                                                    context.startActivity(intent)
+                                                }
+                                                else -> {
+                                                    Toast.makeText(context, "${feat.name} ready!", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        }
                                 ) {
                                     Row(
                                         modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp),
@@ -368,7 +371,4 @@ class MainActivity : ComponentActivity() {
                         ) {
                             Icon(Icons.Default.Close, contentDescription = null, tint = Color.White)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = "STOP SUMI", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
-                        }
-                    }
- 
+              
