@@ -80,7 +80,6 @@ class MainActivity : ComponentActivity() {
                 var avatarBitmap by remember { mutableStateOf<Bitmap?>(null) }
                 var activeDialogTitle by remember { mutableStateOf<String?>(null) }
 
-                // Load saved photo from phone storage
                 LaunchedEffect(Unit) {
                     val file = File(context.filesDir, "custom_avatar.png")
                     if (file.exists()) {
@@ -88,25 +87,26 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // Gallery Image Picker Launcher
                 val imagePickerLauncher = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.GetContent()
                 ) { uri: Uri? ->
-                    uri?.let {
+                    uri?.let { selectedUri ->
                         try {
-                            val inputStream = context.contentResolver.openInputStream(it)
-                            val bitmap = BitmapFactory.decodeStream(inputStream)
-                            avatarBitmap = bitmap
+                            val inputStream = context.contentResolver.openInputStream(selectedUri)
+                            val decoded = BitmapFactory.decodeStream(inputStream)
+                            inputStream?.close()
 
-                            // Save to internal storage
-                            val file = File(context.filesDir, "custom_avatar.png")
-                            val out = FileOutputStream(file)
-                            bitmap.compress(Bitmap.CompressFormat.PNG, 95, out)
-                            out.flush()
-                            out.close()
+                            decoded?.let { validBitmap ->
+                                avatarBitmap = validBitmap
+                                val file = File(context.filesDir, "custom_avatar.png")
+                                val out = FileOutputStream(file)
+                                validBitmap.compress(Bitmap.CompressFormat.PNG, 95, out)
+                                out.flush()
+                                out.close()
 
-                            sumiReplyText = "Haww! Kitni pyari photo lagayi hai meri! Thank you sir jii~ Hehe 🌸"
-                            voiceEngine?.speak("Haww! Kitni pyari photo lagayi hai meri! Thank you sir jii!")
+                                sumiReplyText = "Haww! Kitni pyari photo lagayi hai meri! Thank you sir jii~ Hehe 🌸"
+                                voiceEngine?.speak("Haww! Kitni pyari photo lagayi hai meri! Thank you sir jii!")
+                            }
                         } catch (e: Exception) {
                             Toast.makeText(context, "Photo set nahi ho paayi!", Toast.LENGTH_SHORT).show()
                         }
@@ -271,7 +271,7 @@ fun SumiDashboardScreen(
         ) {
             Spacer(modifier = Modifier.height(6.dp))
 
-            // 1. Real Anime Girl Photo Avatar Circle (Pick from Gallery)
+            // Real Avatar Circle
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
@@ -297,7 +297,7 @@ fun SumiDashboardScreen(
                 }
             }
 
-            // Button to pick custom reference photo from Gallery
+            // Pick photo button
             TextButton(onClick = onChangePhotoClick) {
                 Icon(Icons.Default.PhotoLibrary, contentDescription = null, tint = SumiPinkPrimary, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(4.dp))
@@ -433,4 +433,4 @@ fun SumiDashboardScreen(
                                 modifier = Modifier
                                     .size(34.dp)
                                     .clip(CircleShape)
-               
+                                    .backgro
