@@ -220,7 +220,7 @@ class MainActivity : ComponentActivity() {
                         text = {
                             Text(
                                 text = when (clickedTitle) {
-                                    "Settings" -> "🌸 Voice: Natural Human Alya\n• Pitch: 1.18x (Natural)\n• Speed: 1.02x\n• Personality: Cute Girlfriend"
+                                    "Settings" -> "🌸 Voice: Natural Human Alya\n• Pitch: 1.15x (Sweet)\n• Speed: 1.0x\n• Personality: Cute Girlfriend"
                                     "Memory" -> "Local memory storage active hai."
                                     "Privacy" -> "100% On-device privacy protection."
                                     else -> "Feature active hai!"
@@ -297,9 +297,9 @@ fun SumiDashboardScreen(
                 }
             }
 
-            // Pick photo button
+            // Pick photo button (Using 100% universal Icons.Default.Add)
             TextButton(onClick = onChangePhotoClick) {
-                Icon(Icons.Default.PhotoLibrary, contentDescription = null, tint = SumiPinkPrimary, modifier = Modifier.size(16.dp))
+                Icon(Icons.Default.Add, contentDescription = null, tint = SumiPinkPrimary, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(4.dp))
                 Text("Gallery se Sumi ki Photo lagayein", color = SumiPinkPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             }
@@ -398,7 +398,7 @@ fun SumiDashboardScreen(
                 }
             }
 
-            // Feature Grid Items
+            // Feature Grid Items (Using standard universal icons only)
             val featureList = listOf(
                 FeatureItem("Talk to Sumi", Icons.Default.Call, SumiPinkPrimary),
                 FeatureItem("Settings", Icons.Default.Settings, Color(0xFF673AB7)),
@@ -432,5 +432,4 @@ fun SumiDashboardScreen(
                                 contentAlignment = Alignment.Center,
                                 modifier = Modifier
                                     .size(34.dp)
-                                    .clip(CircleShape)
-                                    .backgro
+                                
