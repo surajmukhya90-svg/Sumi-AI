@@ -7,6 +7,7 @@ import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
+import android.speech.tts.Voice
 import java.util.Locale
 
 class SumiVoiceEngine(
@@ -21,12 +22,25 @@ class SumiVoiceEngine(
 
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
-            // Alya Style High-Pitched Anime Girl Voice
-            tts?.setPitch(1.72f)
-            tts?.setSpeechRate(1.10f)
+            // Alya style: High pitched, soft, gentle and cute cadence
+            tts?.setPitch(1.65f)
+            tts?.setSpeechRate(1.05f)
 
             val hindi = Locale("hi", "IN")
             val res = tts?.setLanguage(hindi)
+
+            // Select highest quality natural female voice available in Google TTS
+            try {
+                val voices = tts?.voices
+                val bestFemaleVoice = voices?.firstOrNull { v ->
+                    v.locale.language == "hi" &&
+                    (v.name.contains("female") || v.name.contains("f0") || v.quality == Voice.QUALITY_VERY_HIGH)
+                }
+                bestFemaleVoice?.let { tts?.voice = it }
+            } catch (e: Exception) {
+                // Fallback to default Hindi
+            }
+
             if (res == TextToSpeech.LANG_MISSING_DATA || res == TextToSpeech.LANG_NOT_SUPPORTED) {
                 tts?.setLanguage(Locale.getDefault())
             }
@@ -78,6 +92,7 @@ class SumiVoiceEngine(
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "hi-IN")
             putExtra("android.speech.extra.EXTRA_ADDITIONAL_LANGUAGES", arrayOf("en-IN", "hi-IN"))
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
         }
 
         try {
