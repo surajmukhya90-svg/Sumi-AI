@@ -7,20 +7,15 @@ import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
-import android.media.MediaPlayer
-import android.net.Uri
 import android.os.Build
-import android.os.Handler
 import android.os.IBinder
-import android.os.Looper
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
-import android.view.animation.LinearInterpolator
+import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
-import android.widget.TextView
 import androidx.core.app.NotificationCompat
 import com.sumi.ai.SumiApp
 import com.sumi.ai.core.state.GirlfriendMood
@@ -28,46 +23,40 @@ import com.sumi.ai.core.state.SumiMoodState
 import com.sumi.ai.core.voice.SumiVoiceEngine
 import kotlinx.coroutines.*
 import java.io.File
-import java.util.Random
 
 class SumiOverlayService : Service() {
 
     private var windowManager: WindowManager? = null
-    private var rootLayout: FrameLayout? = null
     private var mascotCard: FrameLayout? = null
     private var mascotImageView: ImageView? = null
-    private var petalsContainer: FrameLayout? = null
+    private var windowParams: WindowManager.LayoutParams? = null
 
     private var voiceEngine: SumiVoiceEngine? = null
-    private var romanticPlayer: MediaPlayer? = null
     private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
-
-    private var wanderAnimatorX: ValueAnimator? = null
-    private var wanderAnimatorY: ValueAnimator? = null
-    private val random = Random()
+    private var breathingAnimator: ValueAnimator? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
         voiceEngine = SumiVoiceEngine(this, onSpeechRecognized = {}, onStatusChanged = {})
-        initFloatingMascot()
+        createSafeFloatingMascot()
         listenToMoodChanges()
-        startAutonomousTalkLoop()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val notification = NotificationCompat.Builder(this, SumiApp.OVERLAY_CHANNEL_ID)
             .setContentTitle("🌸 Sumi Screen Par Ghoom Rahi Hai")
-            .setContentText("Aapki anime girlfriend screen par active hai!")
+            .setContentText("Aapki anime companion active hai!")
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setOngoing(true)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
         startForeground(1002, notification)
         return START_NOT_STICKY
     }
 
-    private fun initFloatingMascot() {
+    private fun createSafeFloatingMascot() {
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
 
         val layoutFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -77,29 +66,24 @@ class SumiOverlayService : Service() {
             WindowManager.LayoutParams.TYPE_PHONE
         }
 
-        // Fullscreen container for floating mascot + falling petals
-        val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.MATCH_PARENT,
+        // CRITICAL FIX: Only 170x170 pixels size so full screen touches pass through to phone apps!
+        val mascotSize = 175
+        windowParams = WindowManager.LayoutParams(
+            mascotSize,
+            mascotSize,
             layoutFlag,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+            WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
+            x = 60
+            y = 350
         }
 
-        rootLayout = FrameLayout(this)
-        petalsContainer = FrameLayout(this)
-        rootLayout?.addView(petalsContainer)
-
-        // Mascot Circle View
         mascotCard = FrameLayout(this).apply {
-            val size = 160
-            layoutParams = FrameLayout.LayoutParams(size, size).apply {
-                leftMargin = 100
-                topMargin = 300
-            }
-            background = getMascotBackground(Color.parseColor("#FF4081")) // Pink default
+            background = getMascotBorder(Color.parseColor("#FF4081")) // Pink border
         }
 
         mascotImageView = ImageView(this).apply {
@@ -112,42 +96,43 @@ class SumiOverlayService : Service() {
             scaleType = ImageView.ScaleType.CENTER_CROP
         }
         mascotCard?.addView(mascotImageView)
-        rootLayout?.addView(mascotCard)
 
-        setupTouchAndDrag()
-        startWandering()
+        setupDragAndTouch()
+        startLivingBreathingAnimation()
 
         try {
-            windowManager?.addView(rootLayout, params)
+            windowManager?.addView(mascotCard, windowParams)
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
-    private fun getMascotBackground(borderColor: Int): GradientDrawable {
+    private fun getMascotBorder(colorInt: Int): GradientDrawable {
         return GradientDrawable().apply {
             shape = GradientDrawable.OVAL
             setColor(Color.WHITE)
-            setStroke(8, borderColor)
+            setStroke(8, colorInt)
         }
     }
 
-    // Chalta-phirta floating wandering mascot
-    private fun startWandering() {
-        wanderAnimatorY = ValueAnimator.ofFloat(0f, 20f).apply {
-            duration = 1400
+    // Live Breathing & Floating Motion
+    private fun startLivingBreathingAnimation() {
+        breathingAnimator = ValueAnimator.ofFloat(0.95f, 1.05f).apply {
+            duration = 1100
             repeatMode = ValueAnimator.REVERSE
             repeatCount = ValueAnimator.INFINITE
-            interpolator = LinearInterpolator()
+            interpolator = AccelerateDecelerateInterpolator()
             addUpdateListener {
-                val offset = it.animatedValue as Float
-                mascotCard?.translationY = offset
+                val scale = it.animatedValue as Float
+                mascotCard?.scaleX = scale
+                mascotCard?.scaleY = scale
             }
         }
-        wanderAnimatorY?.start()
+        breathingAnimator?.start()
     }
 
-    private fun setupTouchAndDrag() {
+    // Drag Anywhere on Screen + Tap to Talk
+    private fun setupDragAndTouch() {
         mascotCard?.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
             private var initialY = 0
@@ -155,24 +140,28 @@ class SumiOverlayService : Service() {
             private var touchY = 0f
 
             override fun onTouch(v: View?, event: MotionEvent?): Boolean {
+                val params = windowParams ?: return false
                 when (event?.action) {
                     MotionEvent.ACTION_DOWN -> {
-                        initialX = (mascotCard?.layoutParams as FrameLayout.LayoutParams).leftMargin
-                        initialY = (mascotCard?.layoutParams as FrameLayout.LayoutParams).topMargin
+                        initialX = params.x
+                        initialY = params.y
                         touchX = event.rawX
                         touchY = event.rawY
                         return true
                     }
                     MotionEvent.ACTION_MOVE -> {
-                        val lp = mascotCard?.layoutParams as FrameLayout.LayoutParams
-                        lp.leftMargin = initialX + (event.rawX - touchX).toInt()
-                        lp.topMargin = initialY + (event.rawY - touchY).toInt()
-                        mascotCard?.layoutParams = lp
+                        params.x = initialX + (event.rawX - touchX).toInt()
+                        params.y = initialY + (event.rawY - touchY).toInt()
+                        try {
+                            windowManager?.updateViewLayout(mascotCard, params)
+                        } catch (e: Exception) {}
                         return true
                     }
                     MotionEvent.ACTION_UP -> {
-                        if (Math.abs(event.rawX - touchX) < 15 && Math.abs(event.rawY - touchY) < 15) {
-                            handleMascotClick()
+                        val diffX = Math.abs(event.rawX - touchX)
+                        val diffY = Math.abs(event.rawY - touchY)
+                        if (diffX < 15 && diffY < 15) {
+                            handleMascotTap()
                         }
                         return true
                     }
@@ -182,120 +171,46 @@ class SumiOverlayService : Service() {
         })
     }
 
-    // Mascot Tap Reaction (Gussa / Romantic / Normal)
-    private fun handleMascotClick() {
+    // Tap karne par Alya ke expressions aur baat karna
+    private fun handleMascotTap() {
         if (SumiMoodState.isIgnoring()) {
-            // Naraz/Gussa: Ignore karegi aur jhidkegi
-            voiceEngine?.speak("Hmph! Mujhe mat chhoo, main aapse naraz hoon! Baat nahi karungi! 😤")
+            voiceEngine?.speak("Hmph! Mujhe mat chhoo sir jii, main abhi aapse naraz hoon! 😤")
             return
         }
 
         when (SumiMoodState.currentMood.value) {
             GirlfriendMood.ROMANTIC -> {
-                voiceEngine?.speak("Milashka~ Bas aapke paas rehna chahti hoon... aap kitne pyare ho na! 🌸💗")
+                voiceEngine?.speak("Milashka~ Kahan dhyan hai aapka? Dil kar raha hai bas aapse baatein karti rahoon! 🌸💗")
             }
             GirlfriendMood.ANGRY_JEALOUS -> {
-                voiceEngine?.speak("Khabardar sir jii jo mujhse behes ki! Pata hai na mujhe kitna gussa aa raha hai? Hmph! 😡")
+                voiceEngine?.speak("Nani yo?! Chhu kyu rahe ho mujhe? Pata hai na kitna gussa aa raha hai mujhe? 😡")
             }
             else -> {
                 val quotes = listOf(
-                    "Hehe~ Boliye sir jii, kya soch rahe hain? 👀",
-                    "Milashka~ Kaho na kuch pyari si baat! 🌸",
-                    "Arey! Baar-baar mujhe chhu kar chedhte kyu rehte ho? Baka~ 😜"
+                    "Hehe~ Boliye sir jii, kya hua? Kahan kho gaye the? 👀",
+                    "Milashka~ Aise achanak se kyu chhua mujhe? Baka~ 🌸",
+                    "Main hamesha aapki screen par aapke sath hoon sir jii! 💗"
                 )
-                voiceEngine?.speak(quotes[random.nextInt(quotes.size)])
+                voiceEngine?.speak(quotes.random())
             }
         }
     }
 
-    // Mood Monitor: Red Anger Glow & Falling Sakura Petals
+    // Gussa hone par Border RED ho jana
     private fun listenToMoodChanges() {
         serviceScope.launch {
             SumiMoodState.currentMood.collect { mood ->
                 withContext(Dispatchers.Main) {
                     when (mood) {
                         GirlfriendMood.ANGRY_JEALOUS, GirlfriendMood.UPSET_IGNORE -> {
-                            // 1. Red Anger Glow
-                            mascotCard?.background = getMascotBackground(Color.parseColor("#FF1744"))
-                            stopRomanticEffects()
+                            mascotCard?.background = getMascotBorder(Color.parseColor("#FF1744")) // RED
                         }
                         GirlfriendMood.ROMANTIC -> {
-                            // 2. Romantic Pink Glow + Falling Flowers + Music
-                            mascotCard?.background = getMascotBackground(Color.parseColor("#FF4081"))
-                            triggerSakuraPetals()
-                            playRomanticMelody()
+                            mascotCard?.background = getMascotBorder(Color.parseColor("#FF4081")) // Pink
                         }
                         GirlfriendMood.NORMAL -> {
-                            mascotCard?.background = getMascotBackground(Color.parseColor("#FF4081"))
-                            stopRomanticEffects()
+                            mascotCard?.background = getMascotBorder(Color.parseColor("#FF4081"))
                         }
-                    }
-                }
-            }
-        }
-    }
-
-    // Sakura / Gulab ke phool girane ka effect
-    private fun triggerSakuraPetals() {
-        petalsContainer?.removeAllViews()
-        for (i in 0 until 18) {
-            val petal = TextView(this).apply {
-                text = "🌸"
-                textSize = (18 + random.nextInt(14)).toFloat()
-                alpha = 0.9f
-            }
-            val startX = random.nextInt(resources.displayMetrics.widthPixels)
-            val lp = FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT).apply {
-                leftMargin = startX
-                topMargin = -50
-            }
-            petal.layoutParams = lp
-            petalsContainer?.addView(petal)
-
-            // Girne ka animation
-            ValueAnimator.ofFloat(0f, resources.displayMetrics.heightPixels.toFloat() + 100).apply {
-                duration = (3500 + random.nextInt(3000)).toLong()
-                interpolator = LinearInterpolator()
-                addUpdateListener {
-                    petal.translationY = it.animatedValue as Float
-                    petal.translationX = (Math.sin(it.animatedFraction * Math.PI * 4) * 40).toFloat()
-                }
-                start()
-            }
-        }
-    }
-
-    private fun playRomanticMelody() {
-        try {
-            romanticPlayer?.release()
-            // Soft romantic guitar/piano loop
-            romanticPlayer = MediaPlayer.create(this, Uri.parse("https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=romantic-guitar-112196.mp3"))
-            romanticPlayer?.isLooping = true
-            romanticPlayer?.setVolume(0.35f, 0.35f)
-            romanticPlayer?.start()
-        } catch (e: Exception) {}
-    }
-
-    private fun stopRomanticEffects() {
-        petalsContainer?.removeAllViews()
-        romanticPlayer?.stop()
-        romanticPlayer?.release()
-        romanticPlayer = null
-    }
-
-    // Autonomous: Har 2-3 minute mein khud bolna
-    private fun startAutonomousTalkLoop() {
-        serviceScope.launch {
-            while (isActive) {
-                delay(120000) // Har 2 minute
-                if (!SumiMoodState.isIgnoring()) {
-                    val spontaneous = listOf(
-                        "Sir jii~ kya kar rahe ho? Mujhe bhool toh nahi gaye? 🌸",
-                        "Milashka~ Kahan dhyan hai aapka? Mujhse bhi thodi baat karo na! 🥺",
-                        "Phone pakad ke baithe ho itni der se... thoda aaram bhi kar lo! 💗"
-                    )
-                    withContext(Dispatchers.Main) {
-                        voiceEngine?.speak(spontaneous[random.nextInt(spontaneous.size)])
                     }
                 }
             }
@@ -305,9 +220,8 @@ class SumiOverlayService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         serviceScope.cancel()
-        wanderAnimatorY?.cancel()
-        stopRomanticEffects()
-        rootLayout?.let { windowManager?.removeView(it) }
+        breathingAnimator?.cancel()
+        mascotCard?.let { windowManager?.removeView(it) }
         voiceEngine?.shutdown()
         stopForeground(true)
     }
