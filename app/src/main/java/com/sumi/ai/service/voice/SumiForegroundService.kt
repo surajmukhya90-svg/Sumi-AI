@@ -34,12 +34,12 @@ class SumiForegroundService : Service() {
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
-            .setSilent(true) // Koi beeping sound nahi aayegi
+            .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopForeground(true)
     }
 }
