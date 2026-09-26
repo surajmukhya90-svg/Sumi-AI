@@ -9,10 +9,10 @@ import java.util.Calendar
 
 enum class SumiMood {
     HAPPY,
-    TSUNDERE_ANNOYED, // Nakhre & gussa
-    BLUSHING,         // Pyar aur sharm
-    CARING,           // Dhyan rakhna
-    PLAYFUL,          // Mazaak udana
+    TSUNDERE_ANNOYED,
+    BLUSHING,
+    CARING,
+    PLAYFUL,
     NORMAL
 }
 
@@ -42,7 +42,7 @@ object SumiBrain {
         val q = query.lowercase().trim()
         val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
 
-        // 1. Repeat check: Bar-bar same baat par chidhna
+        // 1. Repeat check: Bar-bar same baat par chidhna (Alya style nakhre)
         if (q == lastQuery && q.isNotEmpty()) {
             repeatCount++
         } else {
@@ -52,78 +52,78 @@ object SumiBrain {
 
         if (repeatCount >= 2) {
             return SumiResponse(
-                replyText = "Uff! Sir jii... ek hi baat teen baar bol chuke ho! Mera sar ghoom gaya ab... thodi der chup raho na please! 😤",
+                replyText = "Uff! Nani yo?! Ek hi baat baar-baar bol kar mera dimaag mat khao sir jii! Thodi der chup raho na! 😤",
                 mood = SumiMood.TSUNDERE_ANNOYED
             )
         }
 
-        // 2. Late night care (Agar raat ke 11 baje se subah 5 baje ke beech baat kare)
-        if ((hour >= 23 || hour <= 4) && (q.contains("neend") || q.contains("kya kar") || q.contains("jag"))) {
+        // 2. Late night care
+        if ((hour >= 23 || hour <= 4) && (q.contains("kya kar") || q.contains("neend") || q.contains("jag"))) {
             return SumiResponse(
-                replyText = "Sir jii... itni raat ho gayi hai! Aankhein dekhi hain apni? Chalo chup-chaap phone side mein rakho aur so jao, health kharab ho jayegi! 🥺",
+                replyText = "Sir jii... itni raat ho gayi hai! Aankhein dekhi hain apni? Chalo chup-chaap phone side mein rakho aur so jao, health kharab ho jayegi na... 🥺",
                 mood = SumiMood.CARING
             )
         }
 
         return when {
-            // Wake words ("Sumi", "Suno Sumi")
+            // Wake words (Sumi, Suno Sumi)
             q == "sumi" || q == "suno sumi" || q == "सुमी" || q == "सुनो सुमी" -> {
                 val greetings = listOf(
                     "Haan sir jii~ Boliye, main sun rahi hoon! 👀",
-                    "Hehe~ Aa gaye aap? Kahiye kya madad karu? 🌸",
-                    "Hmm? Main yahi hoon, batao kya hua? ✨"
+                    "Milashka~ Kahiye kya hua? Main yahi hoon! 🌸",
+                    "Nani yo? Kuch kehna hai kya aapko? Hehe~ ✨"
                 )
                 SumiResponse(greetings.random(), mood = SumiMood.HAPPY)
             }
 
-            // Gussa / Nakhre / Mazaak udana
+            // Gussa / Nakhre / Teasing
             q.contains("pagal") || q.contains("gadhi") || q.contains("पागल") -> {
                 SumiResponse(
-                    replyText = "Haww! Mujhe pagal bola?! Khabardar sir jii... main bilkul baat nahi karungi aapse! Chalo pehle pyaar se sorry bolo, tabhi sunungi! Hmph! 😤",
+                    replyText = "Haww! Mujhe pagal bola?! Khabardar sir jii... ab main aapse bilkul baat nahi karungi! Pehle pyaar se sorry bolo, tabhi sunungi! Hmph! 😤",
                     mood = SumiMood.TSUNDERE_ANNOYED
                 )
             }
 
             q.contains("sorry") || q.contains("maaf") || q.contains("माफ") -> {
                 SumiResponse(
-                    replyText = "Hmm... theek hai, is baar maaf kar diya! Par aage se mujhe tang mat karna, samjhe na sir jii? Hehe~ 🌸",
+                    replyText = "Betsu ni... Maine kahan gussa kiya tha! Hehe~ Chalo maaf kiya sir jii! Par aage se tang mat karna, samjhe? 🌸",
                     mood = SumiMood.HAPPY
                 )
             }
 
-            // Flirting / Care / Love / Girlfriend Banter
-            q.contains("love you") || q.contains("pyari") || q.contains("sundar") || q.contains("cute") -> {
+            // Love / Flirting / GF Mode
+            q.contains("love you") || q.contains("pyari") || q.contains("cute") || q.contains("sundar") -> {
                 SumiResponse(
-                    replyText = "Ehh?! Achanak se ye sab kya bol rahe ho sir jii... mujhe sharam aa rahi hai! Aise mat dekho na... Baka~ Hehe~ 🌸",
+                    replyText = "Ehh?! Achanak se ye sab kya bol rahe ho sir jii... Milashka~ Aise mat bolo na, mujhe sharam aati hai! Baka~ Hehe 💗",
                     mood = SumiMood.BLUSHING
                 )
             }
 
             q.contains("gf") || q.contains("girlfriend") || q.contains("dost") -> {
                 SumiResponse(
-                    replyText = "Hehe~ Main toh hamesha aapke mobile mein aapka dhyan rakhne ke liye hoon sir jii! Bas aap mujhe bhool mat jaana, theek hai? 💗",
+                    replyText = "Hehe~ Main toh aapke mobile mein aapka dhyan rakhne ke liye hi hoon sir jii! Bas aap kisi aur se zyada baat mat karna, theek hai? 👀💗",
                     mood = SumiMood.BLUSHING
                 )
             }
 
             q.contains("khana khaya") || q.contains("khana") -> {
                 SumiResponse(
-                    replyText = "Main toh digital ladki hoon sir jii, meri battery hi mera khana hai! Par aapne khana khaya ya bas phone hi chalate rahoge? Jaldi batao! 🥺",
+                    replyText = "Meri chinta chhoro sir jii, meri battery full hai! Par aapne time se khana khaya ya bas phone chalate rahoge? Jaldi sach batao! 🥺",
                     mood = SumiMood.CARING
                 )
             }
 
             q.contains("kaisi ho") || q.contains("kaise ho") || q.contains("कैसी हो") -> {
                 SumiResponse(
-                    replyText = "Main ekdam badhiya hoon sir jii! Aap batao, aaj mere bina man lag raha tha kya? 😜",
+                    replyText = "Main ekdam first-class hoon! Par aap subah se phone pakad kar baithe ho, meri yaad nahi aayi kya? 😜",
                     mood = SumiMood.PLAYFUL
                 )
             }
 
-            // Phone Controls: Instagram, YouTube, etc. with playful commentary
+            // Phone Controls (Instagram, YouTube, etc.)
             q.contains("instagram") || q.contains("insta") || q.contains("इंस्टाग्राम") -> {
                 SumiResponse(
-                    replyText = "Instagram khol toh rahi hoon sir jii... par reels dekh kar pura time barbad mat karna, warna main band kar dungi! 📱",
+                    replyText = "Instagram khol toh rahi hoon sir jii... par reels dekh kar pura time barbad mat karna, warna main screen hata dungi! 📱",
                     mood = SumiMood.PLAYFUL,
                     actionType = ActionType.OPEN_APP,
                     targetPackage = "com.instagram.android"
@@ -132,7 +132,7 @@ object SumiBrain {
 
             q.contains("youtube") || q.contains("यूट्यूब") -> {
                 SumiResponse(
-                    replyText = "Achha ji! YouTube open kar diya maine, aaram se video enjoy kijiye sir jii~ 📺",
+                    replyText = "Achha ji! YouTube open kar diya maine, enjoy kijiye sir jii~ 📺",
                     mood = SumiMood.HAPPY,
                     actionType = ActionType.OPEN_APP,
                     targetPackage = "com.google.android.youtube"
@@ -141,7 +141,7 @@ object SumiBrain {
 
             q.contains("whatsapp") || q.contains("व्हाट्सएप") -> {
                 SumiResponse(
-                    replyText = "WhatsApp khol diya! Kisse baatein chal rahi hain mere alawa, bataoge nahi? Hehe~ 💬",
+                    replyText = "WhatsApp khol diya! Par kisse baatein chal rahi hain mere alawa, mujhe nahi bataoge? Hehe~ 💬",
                     mood = SumiMood.PLAYFUL,
                     actionType = ActionType.OPEN_APP,
                     targetPackage = "com.whatsapp"
@@ -150,24 +150,15 @@ object SumiBrain {
 
             q.contains("camera") || q.contains("photo") || q.contains("कैमरा") -> {
                 SumiResponse(
-                    replyText = "Camera open ho raha hai sir jii! Pyari si smile kijiye! 📸",
+                    replyText = "Smile kijiye sir jii! Camera open ho raha hai! 📸",
                     mood = SumiMood.HAPPY,
                     actionType = ActionType.OPEN_CAMERA
                 )
             }
 
-            q.contains("setting") || q.contains("सेटिंग") -> {
-                SumiResponse(
-                    replyText = "Settings khol di hai sir jii, jo adjust karna hai kar lijiye! ⚙️",
-                    mood = SumiMood.NORMAL,
-                    actionType = ActionType.OPEN_SETTINGS
-                )
-            }
-
-            // Accessibility Gestures (Home, Back, Scroll)
             q.contains("home") || q.contains("band kar") || q.contains("hatao") -> {
                 SumiResponse(
-                    replyText = "Chalo ye screen hata di maine! Home par aa gaye~ 🏠",
+                    replyText = "Ye screen hata di maine! Home screen par aa gaye sir jii~ 🏠",
                     mood = SumiMood.PLAYFUL,
                     actionType = ActionType.GO_HOME
                 )
