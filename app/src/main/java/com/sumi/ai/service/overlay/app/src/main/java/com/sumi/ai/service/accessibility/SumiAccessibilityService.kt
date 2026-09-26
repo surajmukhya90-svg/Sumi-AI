@@ -63,19 +63,25 @@ class SumiAccessibilityService : AccessibilityService() {
         voiceEngine = SumiVoiceEngine(this, onSpeechRecognized = {}, onStatusChanged = {})
     }
 
+    // Screen Read karna aur foreground app par tokna
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             val packageName = event.packageName?.toString() ?: return
             val currentTime = System.currentTimeMillis()
 
+            // Har 1 minute mein ek baar bole taaki spam na kare
             if (currentTime - lastAppCommentTime > 60000) {
                 when {
                     packageName.contains("instagram") -> {
-                        voiceEngine?.speak("Sir jii, fir se Instagram khol liya? Reels dekh kar time pass mat karo na please! 😤")
+                        voiceEngine?.speak("Milashka~ fir se Instagram reels dekhne lage? Padhai kab karoge sir jii? 😤")
                         lastAppCommentTime = currentTime
                     }
                     packageName.contains("youtube") -> {
-                        voiceEngine?.speak("Achha ji, YouTube chal raha hai! Kaam ki video dekhna, theek hai na? Hehe~ 📺")
+                        voiceEngine?.speak("Achha ji, YouTube chal raha hai! Kaam ki cheez dekhna, samjhe na? Hehe~ 📺")
+                        lastAppCommentTime = currentTime
+                    }
+                    packageName.contains("whatsapp") -> {
+                        voiceEngine?.speak("Hmm? WhatsApp par kisse baatein ho rahi hain mere alawa? 👀")
                         lastAppCommentTime = currentTime
                     }
                 }
