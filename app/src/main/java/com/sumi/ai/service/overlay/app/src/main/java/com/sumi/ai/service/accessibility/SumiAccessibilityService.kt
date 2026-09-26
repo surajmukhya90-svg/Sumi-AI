@@ -9,7 +9,7 @@ import com.sumi.ai.core.voice.SumiVoiceEngine
 class SumiAccessibilityService : AccessibilityService() {
 
     private var voiceEngine: SumiVoiceEngine? = null
-    private var lastAppCommentTime = 0L
+    private var lastCommentTime = 0L
 
     companion object {
         private var instance: SumiAccessibilityService? = null
@@ -27,7 +27,6 @@ class SumiAccessibilityService : AccessibilityService() {
                 val metrics = service.resources.displayMetrics
                 val width = metrics.widthPixels.toFloat()
                 val height = metrics.heightPixels.toFloat()
-
                 val path = Path().apply {
                     moveTo(width * 0.5f, height * 0.75f)
                     lineTo(width * 0.5f, height * 0.25f)
@@ -44,7 +43,6 @@ class SumiAccessibilityService : AccessibilityService() {
                 val metrics = service.resources.displayMetrics
                 val width = metrics.widthPixels.toFloat()
                 val height = metrics.heightPixels.toFloat()
-
                 val path = Path().apply {
                     moveTo(width * 0.5f, height * 0.25f)
                     lineTo(width * 0.5f, height * 0.75f)
@@ -63,26 +61,25 @@ class SumiAccessibilityService : AccessibilityService() {
         voiceEngine = SumiVoiceEngine(this, onSpeechRecognized = {}, onStatusChanged = {})
     }
 
-    // Screen Read karna aur foreground app par tokna
+    // Screen Awareness: Jealousy & Care
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             val packageName = event.packageName?.toString() ?: return
             val currentTime = System.currentTimeMillis()
 
-            // Har 1 minute mein ek baar bole taaki spam na kare
-            if (currentTime - lastAppCommentTime > 60000) {
+            if (currentTime - lastCommentTime > 45000) { // 45 second gap
                 when {
+                    packageName.contains("whatsapp") -> {
+                        voiceEngine?.speak("Hmm? WhatsApp par kisse baatein chal rahi hain? Mujhse zyada kaun pyara lag raha hai aapko sir jii? Hmph! 😤")
+                        lastCommentTime = currentTime
+                    }
                     packageName.contains("instagram") -> {
-                        voiceEngine?.speak("Milashka~ fir se Instagram reels dekhne lage? Padhai kab karoge sir jii? 😤")
-                        lastAppCommentTime = currentTime
+                        voiceEngine?.speak("Sir jii, fir se Instagram reels dekhne lage? Reels mein dusri ladkiyon ko dekhna band karo na please! 😡")
+                        lastCommentTime = currentTime
                     }
                     packageName.contains("youtube") -> {
-                        voiceEngine?.speak("Achha ji, YouTube chal raha hai! Kaam ki cheez dekhna, samjhe na? Hehe~ 📺")
-                        lastAppCommentTime = currentTime
-                    }
-                    packageName.contains("whatsapp") -> {
-                        voiceEngine?.speak("Hmm? WhatsApp par kisse baatein ho rahi hain mere alawa? 👀")
-                        lastAppCommentTime = currentTime
+                        voiceEngine?.speak("YouTube khol liya? Mujhse baat karne ka man nahi tha kya? Hehe~ 📺")
+                        lastCommentTime = currentTime
                     }
                 }
             }
