@@ -27,7 +27,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-// Sumi Cute Anime Color Palette (Inspired by Reference)
+// Sumi Cute Anime Color Palette
 val SumiPinkPrimary = Color(0xFFFF4081)
 val SumiPinkSecondary = Color(0xFFFF80AB)
 val SumiPinkBackground = Color(0xFFFFF0F5)
@@ -139,16 +139,16 @@ fun SumiDashboardScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 4. Feature Buttons Grid
+            // 4. Feature Buttons Grid (Using 100% Standard Universal Android Icons)
             val menuItems = listOf(
-                DashboardItem("Talk to Sumi", Icons.Default.Mic, SumiPinkPrimary),
+                DashboardItem("Talk to Sumi", Icons.Default.Call, SumiPinkPrimary),
                 DashboardItem("Settings", Icons.Default.Settings, Color(0xFF673AB7)),
-                DashboardItem("Memory", Icons.Default.Psychology, Color(0xFF009688)),
-                DashboardItem("Phone Control", Icons.Default.Smartphone, Color(0xFFE91E63)),
-                DashboardItem("Air Gestures", Icons.Default.WavingHand, Color(0xFFFF9800)),
+                DashboardItem("Memory", Icons.Default.Favorite, Color(0xFF009688)),
+                DashboardItem("Phone Control", Icons.Default.PhoneAndroid, Color(0xFFE91E63)),
+                DashboardItem("Air Gestures", Icons.Default.PlayArrow, Color(0xFFFF9800)),
                 DashboardItem("Permissions", Icons.Default.Lock, Color(0xFF3F51B5)),
-                DashboardItem("Privacy", Icons.Default.Security, Color(0xFF4CAF50)),
-                DashboardItem("Routines", Icons.Default.Schedule, Color(0xFF00BCD4))
+                DashboardItem("Privacy", Icons.Default.Info, Color(0xFF4CAF50)),
+                DashboardItem("Routines", Icons.Default.Notifications, Color(0xFF00BCD4))
             )
 
             LazyVerticalGrid(
@@ -175,7 +175,7 @@ fun SumiDashboardScreen(
                     .fillMaxWidth()
                     .height(52.dp)
             ) {
-                Icon(Icons.Default.StopCircle, contentDescription = null, tint = Color.White)
+                Icon(Icons.Default.Close, contentDescription = null, tint = Color.White)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "STOP SUMI",
