@@ -13,7 +13,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -31,12 +31,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -47,7 +47,7 @@ import com.sumi.ai.core.voice.SumiVoiceEngine
 import com.sumi.ai.service.voice.SumiForegroundService
 
 val SumiPinkPrimary = Color(0xFFFF4081)
-val SumiPinkSecondary = Color(0xFFFF80AB)
+val SumiPinkHair = Color(0xFFFF69B4)
 val SumiPinkBackground = Color(0xFFFFF0F5)
 val SumiCardSurface = Color(0xFFFFFFFF)
 val SumiTextDark = Color(0xFF2E1A22)
@@ -65,17 +65,10 @@ class MainActivity : ComponentActivity() {
                 val context = LocalContext.current
                 var statusText by remember { mutableStateOf("Ready") }
                 var userSpokenText by remember { mutableStateOf("") }
-                var sumiReplyText by remember { mutableStateOf("Hi ji! Main Sumi hoon. Kahiye, main aapke liye kya kar sakti hoon? 🌸") }
-                var isBackgroundServiceActive by remember { mutableStateOf(false) }
+                var sumiReplyText by remember { mutableStateOf("Konnichiwa! Main Sumi hoon, aapki cute anime assistant~ Boliye babu ji! 🌸") }
+                var isBackgroundActive by remember { mutableStateOf(false) }
                 var activeDialogTitle by remember { mutableStateOf<String?>(null) }
 
-                // Photo loader (Check karega agar sumi_avatar photo upload hui hai)
-                val avatarResId = remember {
-                    val id = context.resources.getIdentifier("sumi_avatar", "drawable", context.packageName)
-                    if (id != 0) id else null
-                }
-
-                // Voice Engine Setup
                 DisposableEffect(Unit) {
                     voiceEngine = SumiVoiceEngine(
                         context = context,
@@ -95,48 +88,45 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // Mic Permission
-                val permissionsLauncher = rememberLauncherForActivityResult(
+                val micLauncher = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.RequestMultiplePermissions()
                 ) { perms ->
-                    val micGranted = perms[Manifest.permission.RECORD_AUDIO] ?: false
-                    if (micGranted) {
-                        statusText = "Listening..."
+                    val granted = perms[Manifest.permission.RECORD_AUDIO] ?: false
+                    if (granted) {
                         voiceEngine?.startListening()
                     } else {
-                        Toast.makeText(context, "Mic permission allow kijiye!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Microphone permission zaroori hai!", Toast.LENGTH_SHORT).show()
                     }
                 }
 
-                fun checkAndStartListening() {
-                    val mic = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-                    if (mic) {
-                        statusText = "Listening..."
+                fun triggerListening() {
+                    val hasMic = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+                    if (hasMic) {
                         voiceEngine?.startListening()
                     } else {
-                        val needed = mutableListOf(Manifest.permission.RECORD_AUDIO)
+                        val list = mutableListOf(Manifest.permission.RECORD_AUDIO)
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            needed.add(Manifest.permission.POST_NOTIFICATIONS)
+                            list.add(Manifest.permission.POST_NOTIFICATIONS)
                         }
-                        permissionsLauncher.launch(needed.toTypedArray())
+                        micLauncher.launch(list.toTypedArray())
                     }
                 }
 
-                fun toggleBackgroundService() {
+                fun toggleBackground() {
                     val intent = Intent(context, SumiForegroundService::class.java)
-                    if (!isBackgroundServiceActive) {
+                    if (!isBackgroundActive) {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                             context.startForegroundService(intent)
                         } else {
                             context.startService(intent)
                         }
-                        isBackgroundServiceActive = true
-                        sumiReplyText = "Background Listen ON ho gaya! Ab 'Suno Sumi' bolein ✨"
-                        voiceEngine?.speak("Background service on ho gayi hai!")
+                        isBackgroundActive = true
+                        sumiReplyText = "Hehe~ Background mode ON ho gaya! Main hamesha aapke sath hoon 🌸"
+                        voiceEngine?.speak("Haan ji! Main background mein ready hoon!")
                     } else {
                         context.stopService(intent)
-                        isBackgroundServiceActive = false
-                        sumiReplyText = "Background service band ho gayi."
+                        isBackgroundActive = false
+                        sumiReplyText = "Background service band ho gayi hai."
                     }
                 }
 
@@ -144,13 +134,12 @@ class MainActivity : ComponentActivity() {
                     statusText = statusText,
                     userSpokenText = userSpokenText,
                     sumiReplyText = sumiReplyText,
-                    avatarResId = avatarResId,
-                    isBackgroundActive = isBackgroundServiceActive,
-                    onToggleBackground = { toggleBackgroundService() },
-                    onAvatarClick = { checkAndStartListening() },
+                    isBackgroundActive = isBackgroundActive,
+                    onAvatarClick = { triggerListening() },
+                    onToggleBackground = { toggleBackground() },
                     onActionClick = { title ->
                         when (title) {
-                            "Talk to Sumi" -> checkAndStartListening()
+                            "Talk to Sumi" -> triggerListening()
                             "Permissions" -> {
                                 val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                                     data = Uri.fromParts("package", context.packageName, null)
@@ -162,16 +151,14 @@ class MainActivity : ComponentActivity() {
                     },
                     onEmergencyStop = {
                         voiceEngine?.stopListening()
-                        val serviceIntent = Intent(context, SumiForegroundService::class.java)
-                        context.stopService(serviceIntent)
-                        isBackgroundServiceActive = false
+                        context.stopService(Intent(context, SumiForegroundService::class.java))
+                        isBackgroundActive = false
                         statusText = "Stopped"
                         sumiReplyText = "⛔ Sumi sab band karke ruk gayi hai!"
-                        Toast.makeText(context, "Emergency Kill Switch Activated!", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, "STOP SUMI Activated!", Toast.LENGTH_SHORT).show()
                     }
                 )
 
-                // Dialogs
                 activeDialogTitle?.let { title ->
                     AlertDialog(
                         onDismissRequest = { activeDialogTitle = null },
@@ -179,10 +166,10 @@ class MainActivity : ComponentActivity() {
                         text = {
                             Text(
                                 text = when (title) {
-                                    "Phone Control" -> "Aap bol sakte hain:\n• 'इंस्टाग्राम खोलो'\n• 'यूट्यूब खोलो'\n• 'व्हाट्सएप खोलो'\n• 'कैमरा खोलो'\n• 'फोन सेटिंग खोलो'\nSumi turant app open karegi!"
-                                    "Settings" -> "🌸 Sumi Voice Settings:\n• Pitch: 1.25x (Cute anime)\n• Speed: 0.95x\n• Preferred Language: Hindi / Hinglish"
-                                    "Memory" -> "Local Memory System: ON\nSumi aapki baatein safe phone storage me yaad rakhti hai."
-                                    "Privacy" -> "100% Private\nSumi koi bhi voice audio kisi server par upload nahi karti."
+                                    "Phone Control" -> "Aap bol sakte hain:\n• 'इंस्टाग्राम खोलो'\n• 'यूट्यूब खोलो'\n• 'व्हाट्सएप खोलो'\n• 'कैमरा खोलो'\n• 'फोन सेटिंग खोलो'"
+                                    "Settings" -> "🌸 Voice: Alya-style Cute Anime Girl\n• Pitch: 1.68x\n• Speed: 1.08x\n• Language: Hindi / Hinglish"
+                                    "Memory" -> "Local memory storage active hai. Kisi server par data save nahi hota."
+                                    "Privacy" -> "100% On-device privacy protection."
                                     else -> "Feature active hai!"
                                 }
                             )
@@ -204,10 +191,9 @@ fun SumiDashboardScreen(
     statusText: String,
     userSpokenText: String,
     sumiReplyText: String,
-    avatarResId: Int?,
     isBackgroundActive: Boolean,
-    onToggleBackground: () -> Unit,
     onAvatarClick: () -> Unit,
+    onToggleBackground: () -> Unit,
     onActionClick: (String) -> Unit,
     onEmergencyStop: () -> Unit
 ) {
@@ -230,48 +216,63 @@ fun SumiDashboardScreen(
         ) {
             Spacer(modifier = Modifier.height(10.dp))
 
-            // 1. Anime Girl Avatar Circle
+            // 1. Anime Girl Character Face Canvas (Pink Hair, Big Anime Eyes, Flowers)
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
-                    .size(135.dp)
+                    .size(150.dp)
                     .scale(scale)
                     .clip(CircleShape)
-                    .background(
-                        Brush.radialGradient(listOf(SumiPinkSecondary, SumiPinkPrimary))
-                    )
-                    .border(4.dp, Color.White, CircleShape)
+                    .background(Color.White)
+                    .border(4.dp, SumiPinkPrimary, CircleShape)
                     .clickable { onAvatarClick() }
             ) {
-                if (avatarResId != null) {
-                    Image(
-                        painter = painterResource(id = avatarResId),
-                        contentDescription = "Sumi Anime Avatar",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(text = "👧🌸", fontSize = 42.sp)
-                        Text(
-                            text = if (isPulsing) "Listening..." else "SUMI",
-                            color = Color.White,
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 13.sp
-                        )
-                    }
-                }
+                AnimeCharacterGraphic(isSpeaking = statusText.contains("Speaking"))
             }
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            // 2. All-Time Background Wake-Word Switch Card
+            // Status Badge
+            Surface(
+                color = Color.White,
+                shape = RoundedCornerShape(20.dp),
+                shadowElevation = 2.dp,
+                modifier = Modifier.padding(vertical = 4.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .clip(CircleShape)
+                            .background(
+                                when {
+                                    statusText.contains("Listening") -> Color(0xFFFF9800)
+                                    statusText.contains("Speaking") -> SumiPinkPrimary
+                                    statusText.contains("Stopped") -> SumiEmergencyRed
+                                    else -> SumiGreenReady
+                                }
+                            )
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "● Status: $statusText",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 12.sp,
+                        color = SumiTextDark
+                    )
+                }
+            }
+
+            // Background Switch
             Card(
                 colors = CardDefaults.cardColors(
                     containerColor = if (isBackgroundActive) Color(0xFFE8F5E9) else Color.White
                 ),
                 shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                 elevation = CardDefaults.cardElevation(2.dp)
             ) {
                 Row(
@@ -281,13 +282,13 @@ fun SumiDashboardScreen(
                 ) {
                     Column {
                         Text(
-                            text = if (isBackgroundActive) "🟢 All-Time Background Listen: ON" else "⚪ Background Listen: OFF",
+                            text = if (isBackgroundActive) "🟢 Sumi Background: ON" else "⚪ Sumi Background: OFF",
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
                             color = if (isBackgroundActive) Color(0xFF2E7D32) else SumiTextDark
                         )
                         Text(
-                            text = "Bolein: 'Suno Sumi' ya 'Sumi'",
+                            text = "Background mein active rahegi",
                             fontSize = 11.sp,
                             color = Color.Gray
                         )
@@ -299,7 +300,7 @@ fun SumiDashboardScreen(
                 }
             }
 
-            // 3. Conversation Card
+            // Speech Bubble
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 shape = RoundedCornerShape(16.dp),
@@ -317,7 +318,7 @@ fun SumiDashboardScreen(
                         Spacer(modifier = Modifier.height(2.dp))
                     }
                     Text(
-                        text = "🌸 Sumi: $sumiReplyText",
+                        text = "🌸 Sumi (Alya voice): $sumiReplyText",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = SumiTextDark
@@ -325,7 +326,7 @@ fun SumiDashboardScreen(
                 }
             }
 
-            // 4. Feature Cards Grid
+            // Grid Items
             val menuItems = listOf(
                 DashboardItem("Talk to Sumi", Icons.Default.Call, SumiPinkPrimary),
                 DashboardItem("Settings", Icons.Default.Settings, Color(0xFF673AB7)),
@@ -350,7 +351,7 @@ fun SumiDashboardScreen(
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            // 5. Emergency STOP
+            // Stop Button
             Button(
                 onClick = onEmergencyStop,
                 colors = ButtonDefaults.buttonColors(containerColor = SumiEmergencyRed),
@@ -362,6 +363,78 @@ fun SumiDashboardScreen(
                 Text(text = "STOP SUMI", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White)
             }
         }
+    }
+}
+
+// Custom Vector Anime Girl Art (Pink hair, purple anime eyes, blush cheeks)
+@Composable
+fun AnimeCharacterGraphic(isSpeaking: Boolean) {
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val w = size.width
+        val h = size.height
+
+        // 1. Pink Hair Background
+        drawCircle(
+            color = Color(0xFFFF8DA1),
+            radius = w * 0.48f,
+            center = Offset(w * 0.5f, h * 0.5f)
+        )
+
+        // 2. Face (Skin tone)
+        drawCircle(
+            color = Color(0xFFFFF0E8),
+            radius = w * 0.36f,
+            center = Offset(w * 0.5f, h * 0.52f)
+        )
+
+        // 3. Pink Anime Bangs / Hair Front
+        val hairPath = Path().apply {
+            moveTo(w * 0.15f, h * 0.35f)
+            quadraticBezierTo(w * 0.3f, h * 0.55f, w * 0.38f, h * 0.4f)
+            quadraticBezierTo(w * 0.5f, h * 0.58f, w * 0.62f, h * 0.4f)
+            quadraticBezierTo(w * 0.7f, h * 0.55f, w * 0.85f, h * 0.35f)
+            quadraticBezierTo(w * 0.5f, h * 0.1f, w * 0.15f, h * 0.35f)
+            close()
+        }
+        drawPath(hairPath, Color(0xFFFF6B8B))
+
+        // 4. Large Anime Eyes (Deep Purple like reference image)
+        val leftEyeCenter = Offset(w * 0.36f, h * 0.52f)
+        val rightEyeCenter = Offset(w * 0.64f, h * 0.52f)
+        val eyeRadius = w * 0.08f
+
+        // Purple iris
+        drawCircle(color = Color(0xFF6A1B9A), radius = eyeRadius, center = leftEyeCenter)
+        drawCircle(color = Color(0xFF6A1B9A), radius = eyeRadius, center = rightEyeCenter)
+
+        // Eye reflections (White anime sparkle)
+        drawCircle(color = Color.White, radius = eyeRadius * 0.45f, center = Offset(leftEyeCenter.x - 4f, leftEyeCenter.y - 4f))
+        drawCircle(color = Color.White, radius = eyeRadius * 0.45f, center = Offset(rightEyeCenter.x - 4f, rightEyeCenter.y - 4f))
+
+        // 5. Cute Anime Blush Cheeks
+        drawCircle(color = Color(0xFFFF9AA2).copy(alpha = 0.5f), radius = w * 0.06f, center = Offset(w * 0.28f, h * 0.62f))
+        drawCircle(color = Color(0xFFFF9AA2).copy(alpha = 0.5f), radius = w * 0.06f, center = Offset(w * 0.72f, h * 0.62f))
+
+        // 6. Cute Mouth (Open if speaking, cute smile if idle)
+        if (isSpeaking) {
+            drawCircle(color = Color(0xFFE91E63), radius = w * 0.045f, center = Offset(w * 0.5f, h * 0.68f))
+        } else {
+            drawArc(
+                color = Color(0xFFE91E63),
+                startAngle = 0f,
+                sweepAngle = 180f,
+                useCenter = false,
+                topLeft = Offset(w * 0.46f, h * 0.64f),
+                size = androidx.compose.ui.geometry.Size(w * 0.08f, h * 0.06f)
+            )
+        }
+
+        // 7. Hair Flower Accessories (White & Pink flowers from reference image)
+        drawCircle(color = Color.White, radius = w * 0.05f, center = Offset(w * 0.22f, h * 0.28f))
+        drawCircle(color = Color(0xFFFF4081), radius = w * 0.02f, center = Offset(w * 0.22f, h * 0.28f))
+
+        drawCircle(color = Color.White, radius = w * 0.05f, center = Offset(w * 0.78f, h * 0.28f))
+        drawCircle(color = Color(0xFFFF4081), radius = w * 0.02f, center = Offset(w * 0.78f, h * 0.28f))
     }
 }
 
@@ -377,29 +450,4 @@ fun DashboardCard(item: DashboardItem, onClick: () -> Unit) {
         onClick = onClick,
         colors = CardDefaults.cardColors(containerColor = SumiCardSurface),
         shape = RoundedCornerShape(14.dp),
-        elevation = CardDefaults.cardElevation(2.dp),
-        modifier = Modifier.fillMaxWidth().height(72.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(item.tint.copy(alpha = 0.15f))
-            ) {
-                Icon(item.icon, contentDescription = null, tint = item.tint, modifier = Modifier.size(20.dp))
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = item.title,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = SumiTextDark
-            )
-        }
-    }
-}
+        elevation = CardDe
