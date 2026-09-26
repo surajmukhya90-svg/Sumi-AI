@@ -24,50 +24,52 @@ object SumiBrain {
         val q = query.lowercase().trim()
 
         return when {
-            // Greetings / Halchal
-            q.contains("kaise ho") || q.contains("kaisi ho") -> {
-                SumiResponse("Main bilkul theek aur fresh hoon ji! Aap batao, aaj main aapki kya madad karu? 😄")
-            }
-            q.contains("naam kya hai") || q.contains("tum kaun ho") || q.contains("who are you") -> {
-                SumiResponse("Main Sumi hoon! Aapki personal Hindi AI dost aur phone controller 🌸")
-            }
-            q.contains("kya kar sakti ho") -> {
-                SumiResponse("Main aapse Hindi mein baatein kar sakti hoon, YouTube, Instagram, Camera aur phone ki settings khol sakti hoon!")
+            // Wake words (Suno Sumi / Sumi)
+            q == "sumi" || q == "suno sumi" || q == "सुमी" || q == "सुनो सुमी" -> {
+                SumiResponse("Haan ji babu ji, boliye! Main sun rahi hoon 😄")
             }
 
-            // Teasing / Playful responses
-            q.contains("pagal") || q.contains("gadhi") -> {
-                SumiResponse("Aise bologe toh main baat nahi karungi aapse... naraz ho jaungi 😤")
+            // Halchal / Identity
+            q.contains("kaise ho") || q.contains("kaisi ho") || q.contains("कैसे हो") || q.contains("कैसी हो") -> {
+                SumiResponse("Main ekdam badhiya hoon ji! Aap batao kaisa chal raha hai? 🌸")
+            }
+            q.contains("naam") || q.contains("naam kya hai") || q.contains("नाम") -> {
+                SumiResponse("Mera naam Sumi hai, aapki Hindi AI companion aur phone controller!")
             }
 
-            // Open YouTube
-            q.contains("youtube") -> {
-                SumiResponse("Achha ji, abhi YouTube kholti hoon! 📺", ActionType.OPEN_APP, "com.google.android.youtube")
+            // Instagram (Devanagari Hindi + English)
+            q.contains("instagram") || q.contains("insta") || q.contains("ig") ||
+            q.contains("इंस्टाग्राम") || q.contains("इन्स्टा") -> {
+                SumiResponse("Achha ji, abhi Instagram kholti hoon! Reels dekhiye aaram se 😄", ActionType.OPEN_APP, "com.instagram.android")
             }
 
-            // Open Instagram
-            q.contains("instagram") || q.contains("insta") || q.contains("ig") -> {
-                SumiResponse("Haan ji babu ji, Instagram khol rahi hoon, reels dekho aaram se 😄", ActionType.OPEN_APP, "com.instagram.android")
+            // YouTube (Hindi + English)
+            q.contains("youtube") || q.contains("यूट्यूब") || q.contains("yt") -> {
+                SumiResponse("Ji babu ji, abhi YouTube open kar rahi hoon! 📺", ActionType.OPEN_APP, "com.google.android.youtube")
             }
 
-            // Open WhatsApp
-            q.contains("whatsapp") -> {
-                SumiResponse("Ji, WhatsApp open kar rahi hoon! 💬", ActionType.OPEN_APP, "com.whatsapp")
+            // WhatsApp
+            q.contains("whatsapp") || q.contains("व्हाट्सएप") -> {
+                SumiResponse("WhatsApp khol diya hai ji! 💬", ActionType.OPEN_APP, "com.whatsapp")
             }
 
-            // Open Camera
-            q.contains("camera") || q.contains("photo") -> {
-                SumiResponse("Camera khol rahi hoon ji, smile kijiye! 📸", ActionType.OPEN_CAMERA)
+            // Camera
+            q.contains("camera") || q.contains("photo") || q.contains("कैमरा") || q.contains("फोटो") -> {
+                SumiResponse("Smile kijiye ji, camera open ho raha hai! 📸", ActionType.OPEN_CAMERA)
             }
 
-            // Open Settings
-            q.contains("setting") -> {
-                SumiResponse("Theek hai, phone ki settings khol di maine! ⚙️", ActionType.OPEN_SETTINGS)
+            // Settings
+            q.contains("setting") || q.contains("सेटिंग") -> {
+                SumiResponse("Theek hai ji, phone ki settings khol di maine! ⚙️", ActionType.OPEN_SETTINGS)
             }
 
-            // Default friendly reply
+            // Teasing
+            q.contains("baar baar") || q.contains("बार बार") -> {
+                SumiResponse("Kyunki aap bhi toh baar baar wahi pooch rahe ho 😑😂")
+            }
+
             else -> {
-                SumiResponse("Achhaaa ji! Aapne kaha: \"$query\". Main abhi seekh rahi hoon, par jaldi hi isme bhi expert ho jaungi! ✨")
+                SumiResponse("Theek hai babu ji! Maine suna: \"$query\". Abhi main ise samajhne ki koshish kar rahi hoon ✨")
             }
         }
     }
@@ -77,14 +79,19 @@ object SumiBrain {
             when (response.actionType) {
                 ActionType.OPEN_APP -> {
                     response.targetPackage?.let { pkg ->
-                        val launchIntent = context.packageManager.getLaunchIntentForPackage(pkg)
+                        val pm = context.packageManager
+                        val launchIntent = pm.getLaunchIntentForPackage(pkg)
                         if (launchIntent != null) {
+                            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             context.startActivity(launchIntent)
                         } else {
-                            // Agar direct app nahi hai toh Play Store ya browser intent
-                            val marketIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=$pkg"))
-                            marketIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            context.startActivity(marketIntent)
+                            val webIntent = when (pkg) {
+                                "com.instagram.android" -> Intent(Intent.ACTION_VIEW, Uri.parse("https://instagram.com"))
+                                "com.google.android.youtube" -> Intent(Intent.ACTION_VIEW, Uri.parse("https://youtube.com"))
+                                else -> Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$pkg"))
+                            }
+                            webIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            context.startActivity(webIntent)
                         }
                     }
                 }
