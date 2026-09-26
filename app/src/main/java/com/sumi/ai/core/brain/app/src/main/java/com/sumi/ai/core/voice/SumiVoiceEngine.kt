@@ -22,23 +22,22 @@ class SumiVoiceEngine(
 
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
-            // Alya style: High pitched, soft, gentle and cute cadence
-            tts?.setPitch(1.65f)
-            tts?.setSpeechRate(1.05f)
+            // Natural Sweet Human Female Voice (Alya Style - Not squeaky!)
+            tts?.setPitch(1.18f)       // Soft, natural feminine pitch
+            tts?.setSpeechRate(1.02f)   // Natural conversational speed
 
             val hindi = Locale("hi", "IN")
             val res = tts?.setLanguage(hindi)
 
-            // Select highest quality natural female voice available in Google TTS
             try {
                 val voices = tts?.voices
-                val bestFemaleVoice = voices?.firstOrNull { v ->
+                val naturalFemaleVoice = voices?.firstOrNull { v ->
                     v.locale.language == "hi" &&
                     (v.name.contains("female") || v.name.contains("f0") || v.quality == Voice.QUALITY_VERY_HIGH)
                 }
-                bestFemaleVoice?.let { tts?.voice = it }
+                naturalFemaleVoice?.let { tts?.voice = it }
             } catch (e: Exception) {
-                // Fallback to default Hindi
+                // Default fallback
             }
 
             if (res == TextToSpeech.LANG_MISSING_DATA || res == TextToSpeech.LANG_NOT_SUPPORTED) {
