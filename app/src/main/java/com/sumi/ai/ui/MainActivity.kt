@@ -13,7 +13,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -31,7 +30,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -50,6 +48,12 @@ val SumiCardSurface = Color(0xFFFFFFFF)
 val SumiTextDark = Color(0xFF2E1A22)
 val SumiGreenReady = Color(0xFF00C853)
 val SumiEmergencyRed = Color(0xFFD50000)
+
+data class FeatureItem(
+    val itemName: String,
+    val itemIcon: ImageVector,
+    val itemColor: Color
+)
 
 class MainActivity : ComponentActivity() {
 
@@ -161,16 +165,16 @@ class MainActivity : ComponentActivity() {
                     }
                 )
 
-                activeDialogTitle?.let { title ->
+                activeDialogTitle?.let { clickedTitle ->
                     AlertDialog(
                         onDismissRequest = { activeDialogTitle = null },
-                        title = { Text(text = "🌸 $title", fontWeight = FontWeight.Bold) },
+                        title = { Text(text = "🌸 $clickedTitle", fontWeight = FontWeight.Bold) },
                         text = {
                             Text(
-                                text = when (title) {
+                                text = when (clickedTitle) {
                                     "Phone Control" -> "Aap bol sakte hain:\n• 'इंस्टाग्राम खोलो'\n• 'यूट्यूब खोलो'\n• 'व्हाट्सएप खोलो'\n• 'कैमरा खोलो'\n• 'फोन सेटिंग खोलो'"
                                     "Settings" -> "🌸 Voice: Alya-style Cute Anime Girl\n• Pitch: 1.72x\n• Speed: 1.10x\n• Personality: Tsundere & Cute"
-                                    "Memory" -> "Local memory storage active hai. Data phone par safe rehta hai."
+                                    "Memory" -> "Local memory storage active hai."
                                     "Privacy" -> "100% On-device privacy protection."
                                     else -> "Feature active hai!"
                                 }
@@ -219,7 +223,7 @@ fun SumiDashboardScreen(
         ) {
             Spacer(modifier = Modifier.height(10.dp))
 
-            // 1. Anime Girl Interactive Face (Expressions change with Mood)
+            // Anime Avatar with Moods
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
@@ -279,7 +283,7 @@ fun SumiDashboardScreen(
                 ),
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                elevation = CardDefaults.cardElevation(2.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
@@ -311,7 +315,7 @@ fun SumiDashboardScreen(
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                elevation = CardDefaults.cardElevation(2.dp)
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     if (userSpokenText.isNotEmpty()) {
@@ -324,7 +328,7 @@ fun SumiDashboardScreen(
                         Spacer(modifier = Modifier.height(2.dp))
                     }
                     Text(
-                        text = "🌸 Sumi: $sumiReplyText",
+                        text = "🌸 Sumi (Alya voice): $sumiReplyText",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = SumiTextDark
@@ -332,16 +336,16 @@ fun SumiDashboardScreen(
                 }
             }
 
-            // Grid Items
-            val menuItems = listOf(
-                DashboardItem("Talk to Sumi", Icons.Default.Call, SumiPinkPrimary),
-                DashboardItem("Settings", Icons.Default.Settings, Color(0xFF673AB7)),
-                DashboardItem("Memory", Icons.Default.Favorite, Color(0xFF009688)),
-                DashboardItem("Phone Control", Icons.Default.PhoneAndroid, Color(0xFFE91E63)),
-                DashboardItem("Air Gestures", Icons.Default.PlayArrow, Color(0xFFFF9800)),
-                DashboardItem("Permissions", Icons.Default.Lock, Color(0xFF3F51B5)),
-                DashboardItem("Privacy", Icons.Default.Info, Color(0xFF4CAF50)),
-                DashboardItem("Routines", Icons.Default.Notifications, Color(0xFF00BCD4))
+            // Feature Grid Items
+            val featureList = listOf(
+                FeatureItem("Talk to Sumi", Icons.Default.Call, SumiPinkPrimary),
+                FeatureItem("Settings", Icons.Default.Settings, Color(0xFF673AB7)),
+                FeatureItem("Memory", Icons.Default.Favorite, Color(0xFF009688)),
+                FeatureItem("Phone Control", Icons.Default.PhoneAndroid, Color(0xFFE91E63)),
+                FeatureItem("Air Gestures", Icons.Default.PlayArrow, Color(0xFFFF9800)),
+                FeatureItem("Permissions", Icons.Default.Lock, Color(0xFF3F51B5)),
+                FeatureItem("Privacy", Icons.Default.Info, Color(0xFF4CAF50)),
+                FeatureItem("Routines", Icons.Default.Notifications, Color(0xFF00BCD4))
             )
 
             LazyVerticalGrid(
@@ -350,8 +354,36 @@ fun SumiDashboardScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(menuItems) { item ->
-                    DashboardCard(item = item, onClick = { onActionClick(item.title) })
+                items(featureList) { feat ->
+                    Card(
+                        onClick = { onActionClick(feat.itemName) },
+                        colors = CardDefaults.cardColors(containerColor = SumiCardSurface),
+                        shape = RoundedCornerShape(14.dp),
+                        elevation = CardDefaults.cardElevation(2.dp),
+                        modifier = Modifier.fillMaxWidth().height(72.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(feat.itemColor.copy(alpha = 0.15f))
+                            ) {
+                                Icon(feat.itemIcon, contentDescription = null, tint = feat.itemColor, modifier = Modifier.size(20.dp))
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = feat.itemName,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = SumiTextDark
+                            )
+                        }
+                    }
                 }
             }
 
@@ -371,61 +403,3 @@ fun SumiDashboardScreen(
         }
     }
 }
-
-// Complete Vector Anime Girl Art with Real Changing Expressions (Happy, Pout, Blush)
-@Composable
-fun AnimeCharacterGraphic(mood: SumiMood, isSpeaking: Boolean) {
-    Canvas(modifier = Modifier.fillMaxSize()) {
-        val w = size.width
-        val h = size.height
-
-        // 1. Pink Hair
-        drawCircle(color = Color(0xFFFF8DA1), radius = w * 0.48f, center = Offset(w * 0.5f, h * 0.5f))
-
-        // 2. Face (Skin tone)
-        drawCircle(color = Color(0xFFFFF0E8), radius = w * 0.36f, center = Offset(w * 0.5f, h * 0.52f))
-
-        // 3. Hair Bangs
-        drawCircle(color = Color(0xFFFF6B8B), radius = w * 0.22f, center = Offset(w * 0.35f, h * 0.32f))
-        drawCircle(color = Color(0xFFFF6B8B), radius = w * 0.22f, center = Offset(w * 0.65f, h * 0.32f))
-
-        // 4. Large Anime Eyes (Deep Purple)
-        val leftEye = Offset(w * 0.36f, h * 0.52f)
-        val rightEye = Offset(w * 0.64f, h * 0.52f)
-        val eyeR = w * 0.08f
-
-        if (mood == SumiMood.TSUNDERE_ANNOYED) {
-            // Angry/Pout Eyes (> <)
-            drawLine(Color(0xFF6A1B9A), Offset(leftEye.x - 12f, leftEye.y - 8f), Offset(leftEye.x + 12f, leftEye.y + 8f), strokeWidth = 8f)
-            drawLine(Color(0xFF6A1B9A), Offset(leftEye.x - 12f, leftEye.y + 8f), Offset(leftEye.x + 12f, leftEye.y - 8f), strokeWidth = 8f)
-
-            drawLine(Color(0xFF6A1B9A), Offset(rightEye.x - 12f, rightEye.y - 8f), Offset(rightEye.x + 12f, rightEye.y + 8f), strokeWidth = 8f)
-            drawLine(Color(0xFF6A1B9A), Offset(rightEye.x - 12f, rightEye.y + 8f), Offset(rightEye.x + 12f, rightEye.y - 8f), strokeWidth = 8f)
-        } else {
-            // Beautiful open anime eyes
-            drawCircle(color = Color(0xFF6A1B9A), radius = eyeR, center = leftEye)
-            drawCircle(color = Color(0xFF6A1B9A), radius = eyeR, center = rightEye)
-
-            // Sparkle
-            drawCircle(color = Color.White, radius = eyeR * 0.45f, center = Offset(leftEye.x - 4f, leftEye.y - 4f))
-            drawCircle(color = Color.White, radius = eyeR * 0.45f, center = Offset(rightEye.x - 4f, rightEye.y - 4f))
-        }
-
-        // 5. Blush Cheeks (Extra red if Blushing or Annoyed)
-        val blushColor = if (mood == SumiMood.BLUSHING || mood == SumiMood.TSUNDERE_ANNOYED) Color(0xFFFF5252).copy(alpha = 0.65f) else Color(0xFFFF8DA1).copy(alpha = 0.4f)
-        drawCircle(color = blushColor, radius = w * 0.07f, center = Offset(w * 0.26f, h * 0.62f))
-        drawCircle(color = blushColor, radius = w * 0.07f, center = Offset(w * 0.74f, h * 0.62f))
-
-        // 6. Mouth (Animated if speaking, Pout if annoyed, Smile if happy)
-        if (isSpeaking) {
-            drawCircle(color = Color(0xFFE91E63), radius = w * 0.045f, center = Offset(w * 0.5f, h * 0.68f))
-        } else if (mood == SumiMood.TSUNDERE_ANNOYED) {
-            // Pout / Angry cute line (3 shape)
-            drawLine(Color(0xFFE91E63), Offset(w * 0.45f, h * 0.68f), Offset(w * 0.55f, h * 0.68f), strokeWidth = 6f)
-        } else {
-            // Cute smile
-            drawCircle(color = Color(0xFFE91E63), radius = w * 0.025f, center = Offset(w * 0.5f, h * 0.67f))
-        }
-
-        // 7. Hair Flowers (White & Pink)
-        drawCircle(color = Color.White, radius = w * 0.05f, center
